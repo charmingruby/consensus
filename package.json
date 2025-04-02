@@ -1,0 +1,28 @@
+{
+  "name": "consensus",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx hardhat node",
+    "test": "npx hardhat test",
+    "compile": "npx hardhat compile",
+    "deploy:dev": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network local"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/charmingruby/consensus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/charmingruby/consensus/issues"
+  },
+  "homepage": "https://github.com/charmingruby/consensus#readme",
+  "description": "",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.19"
+  }
+}
