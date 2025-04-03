@@ -1,6 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import hre from "hardhat";
 import { expect } from "chai";
+import { ethers } from "hardhat";
 
 describe("Consensus", () => {
   async function deployFixture() {
@@ -73,6 +74,141 @@ describe("Consensus", () => {
       })
     })
 
+    describe("setManager", () => {
+      it("should set a new manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.setManager(groupMember.address)
+
+        expect(await contract.getManager()).to.equal(groupMember.address);
+      })
+
+      it("should be not able to set a new manager if the address is null", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.setManager(ethers.ZeroAddress))
+          .to.be.revertedWith("Address can't be null");
+      })
+
+      it("should be not able to set a new manager if is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.setManager(groupMember.address))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
+
+      it("should be not able to set a new manager if the new manager is the current manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.setManager(manager.address))
+          .to.be.revertedWith("New manager can't be the current manager");
+      })
+    })
+
+    describe("getManager", () => {
+      it("should return the manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        expect(await contract.getManager()).to.equal(manager.address);
+      })
+    })
+
+    describe("setCounselor", () => {
+      it("should add a counselor to the contract", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await contract.setCounselor(groupMember.address, true)
+
+        expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+      })
+
+      it("should be not able to add a counselor if the address is already a counselor", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await contract.setCounselor(groupMember.address, true)
+
+        await expect(contract.setCounselor(groupMember.address, true))
+          .to.be.revertedWith("Counselor already exists");
+      })
+
+      it("should be not able to add a counselor if is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.setCounselor(groupMember.address, true))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
+
+      it("should be not able to add a counselor if the address is not a leader", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.setCounselor(groupMember.address, true))
+          .to.be.revertedWith("Counselor is not a leader");
+      })
+
+      it("should remove a counselor from the contract", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await contract.setCounselor(groupMember.address, true)
+
+        expect(await contract.isCounselor(groupMember.address)).to.be.equal(true);
+
+        await contract.setCounselor(groupMember.address, false)
+
+        expect(await contract.isCounselor(groupMember.address)).to.be.equal(false);
+      })
+
+      it("should be not able to remove a counselor if the address is not a counselor", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.setCounselor(groupMember.address, false))
+          .to.be.revertedWith("Counselor does not exists");
+      })
+
+      it("should be not able to remove a counselor if is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await contract.setCounselor(groupMember.address, true)
+
+        expect(await contract.isCounselor(groupMember.address)).to.be.equal(true);
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.setCounselor(groupMember.address, false))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
+    })
+
+    describe("isCounselor", () => {
+      it("should return true if the address is a counselor", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await contract.setCounselor(groupMember.address, true)
+
+        expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+      })
+
+      it("should return false if the address is not a counselor", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        expect(await contract.isCounselor(groupMember.address)).to.equal(false);
+      })
+    })
 
     describe("isLeader", () => {
       it("should return true if the address is a leader", async () => {

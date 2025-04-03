@@ -34,11 +34,49 @@ contract Consensus {
         require(groupExists(_groupId), "Group does not exists");
         require(isLeader(_leader), "Leader does not exists");
 
-        _leaders[_leader] = 0;
+        delete _leaders[_leader];
+
+        if (isCounselor(_leader)) delete _counselors[_leader];
+    }
+
+    function setManager(address _newManager) external restrictedToManager {
+        require(_newManager != address(0), "Address can't be null");
+        require(
+            _newManager != _manager,
+            "New manager can't be the current manager"
+        );
+
+        _manager = _newManager;
+    }
+
+    function getManager() external view returns (address) {
+        return _manager;
+    }
+
+    function setCounselor(
+        address _counselor,
+        bool _isEntering
+    ) external restrictedToManager {
+        if (_isEntering) {
+            require(!isCounselor(_counselor), "Counselor already exists");
+            require(isLeader(_counselor), "Counselor is not a leader");
+
+            _counselors[_counselor] = true;
+
+            return;
+        }
+
+        require(isCounselor(_counselor), "Counselor does not exists");
+
+        delete _counselors[_counselor];
     }
 
     function groupExists(uint8 _groupId) public view returns (bool) {
         return _groups[_groupId];
+    }
+
+    function isCounselor(address _counselor) public view returns (bool) {
+        return _counselors[_counselor];
     }
 
     function isLeader(address _groupLeader) public view returns (bool) {
