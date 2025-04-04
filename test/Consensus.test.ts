@@ -243,44 +243,111 @@ describe("Consensus", () => {
 
   describe("Topic Management", () => {
     describe("addTopic", () => {
-      it("should add a topic to the contract", async () => {
+      it("should add a topic", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        const topic = await contract.getTopic("Test Topic")
+
+        expect(topic.title).to.equal(title)
       })
 
       it("should be not able to add a topic if the topic already exists", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await expect(contract.addTopic(title, "Test Description"))
+          .to.be.revertedWith("Topic already exists");
+      })
+
+      it("should be not able to add a topic if is not at least a group leader", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.addTopic("Test Topic", "Test Description"))
+          .to.be.revertedWith("Only the group leaders can call this function");
       })
     })
 
     describe("removeTopic", () => {
       it("should remove a topic from the contract", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.removeTopic(title)
+
+        expect(await contract.topicExists(title)).to.equal(false)
       })
 
       it("should be not able to remove a topic if the topic does not exist", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        await expect(contract.removeTopic("Non Existent Topic"))
+          .to.be.revertedWith("Topic does not exists");
       })
 
-      it("should be not able to remove a topic if the topic is not idle", async () => {
+      it("should be not able to remove a topic if is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.removeTopic(title))
+          .to.be.revertedWith("Only the manager can call this function");
       })
     })
 
     describe("getTopic", () => {
-      it("should return the topic", async () => { })
+      it("should return the topic", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
-      it("should be not able to get a topic if the topic does not exist", async () => {
+        const title = "Test Topic"
 
+        await contract.addTopic(title, "Test Description")
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.title).to.equal(title)
+      })
+
+      it("should return empty topic for non-existent topic", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const topic = await contract.getTopic("Non Existent Topic")
+
+        expect(topic.title).to.equal("")
+        expect(topic.createdAt).to.equal(0)
       })
     })
 
     describe("topicExists", () => {
       it("should return true if the topic exists", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        expect(await contract.topicExists(title)).to.equal(true)
       })
 
       it("should return false if the topic does not exist", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
+        expect(await contract.topicExists("Non Existent Topic")).to.equal(false)
       })
     })
   })

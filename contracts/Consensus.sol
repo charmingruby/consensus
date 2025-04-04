@@ -99,7 +99,7 @@ contract Consensus {
             title: _title,
             description: _description,
             status: Status.IDLE,
-            createdAt: 0,
+            createdAt: block.timestamp,
             startDate: 0,
             endDate: 0
         });
