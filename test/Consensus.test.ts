@@ -240,4 +240,48 @@ describe("Consensus", () => {
       })
     })
   })
+
+  describe("Topic Management", () => {
+    describe("addTopic", () => {
+      it("should add a topic to the contract", async () => {
+
+      })
+
+      it("should be not able to add a topic if the topic already exists", async () => {
+
+      })
+    })
+
+    describe("removeTopic", () => {
+      it("should remove a topic from the contract", async () => {
+
+      })
+
+      it("should be not able to remove a topic if the topic does not exist", async () => {
+
+      })
+
+      it("should be not able to remove a topic if the topic is not idle", async () => {
+
+      })
+    })
+
+    describe("getTopic", () => {
+      it("should return the topic", async () => { })
+
+      it("should be not able to get a topic if the topic does not exist", async () => {
+
+      })
+    })
+
+    describe("topicExists", () => {
+      it("should return true if the topic exists", async () => {
+
+      })
+
+      it("should return false if the topic does not exist", async () => {
+
+      })
+    })
+  })
 });

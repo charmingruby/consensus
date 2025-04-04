@@ -10,6 +10,24 @@ contract Consensus {
     mapping(address => uint8) private _leaders;
     mapping(uint8 => bool) private _groups;
 
+    enum Status {
+        IDLE,
+        VOTING,
+        APPROVED,
+        DENIED
+    }
+
+    struct Topic {
+        string title;
+        string description;
+        Status status;
+        uint256 createdAt;
+        uint256 startDate;
+        uint256 endDate;
+    }
+
+    mapping(bytes32 => Topic) private _topics;
+
     constructor() {
         _manager = msg.sender;
 
@@ -71,6 +89,39 @@ contract Consensus {
         delete _counselors[_counselor];
     }
 
+    function addTopic(
+        string memory _title,
+        string memory _description
+    ) external restrictedToGroupLeaders {
+        require(!topicExists(_title), "Topic already exists");
+
+        Topic memory newTopic = Topic({
+            title: _title,
+            description: _description,
+            status: Status.IDLE,
+            createdAt: 0,
+            startDate: 0,
+            endDate: 0
+        });
+
+        _topics[keccak256(bytes(newTopic.title))] = newTopic;
+    }
+
+    function removeTopic(string memory _title) external restrictedToManager {
+        require(topicExists(_title), "Topic does not exists");
+
+        Topic memory topic = getTopic(_title);
+
+        require(topic.status == Status.IDLE, "Only IDLE topics can be removed");
+
+        delete _topics[keccak256(bytes(_title))];
+    }
+
+    function getTopic(string memory _title) public view returns (Topic memory) {
+        bytes32 topicId = keccak256(bytes(_title));
+        return _topics[topicId];
+    }
+
     function groupExists(uint8 _groupId) public view returns (bool) {
         return _groups[_groupId];
     }
@@ -81,6 +132,10 @@ contract Consensus {
 
     function isLeader(address _groupLeader) public view returns (bool) {
         return _leaders[_groupLeader] > 0;
+    }
+
+    function topicExists(string memory _title) public view returns (bool) {
+        return getTopic(_title).createdAt > 0;
     }
 
     modifier restrictedToManager() {
