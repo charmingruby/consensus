@@ -377,7 +377,7 @@ describe("Consensus", () => {
           to.be.revertedWith("Topic does not exists");
       })
 
-      it("should be not able to open a voting if the topic is not in idle status", async () => {
+      it("should be not able to open a voting if the topic is not in IDLE status", async () => {
         const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
         const title = "Test Topic"
