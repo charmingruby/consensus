@@ -351,4 +351,267 @@ describe("Consensus", () => {
       })
     })
   })
+
+  describe("Voting Management", () => {
+    describe("openVoting", () => {
+      it("should open a voting", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(1)
+      })
+
+      it("should be not able to open a voting if the topic does not exist", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await expect(contract.openVoting(title)).
+          to.be.revertedWith("Topic does not exists");
+      })
+
+      it("should be not able to open a voting if the topic is not in idle status", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await expect(contract.openVoting(title))
+          .to.be.revertedWith("Only IDLE topics can be open for voting");
+      })
+
+      it("should be not able to open a voting if sender is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.openVoting(title)).
+          to.be.revertedWith("Only the manager can call this function");
+      })
+    })
+
+    describe("vote", () => {
+      it("should vote for a topic", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await groupMemberContract.vote(title, 1)
+
+        expect(await contract.numberOfVotes(title)).to.be.equal(1)
+      })
+
+      it("should be not able to vote if the topic does not exist", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.vote(title, 1))
+          .to.be.revertedWith("Topic does not exists");
+      })
+
+      it("should be not able to vote if the topic is not in VOTING status", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.vote(title, 1))
+          .to.be.revertedWith("Only VOTING topics can be voted");
+      })
+
+      it("should be not able to vote if sender is not a leader", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.vote(title, 1))
+          .to.be.revertedWith("Only the group leaders can call this function");
+      })
+
+      it("should be not able to vote if the option is blank", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.vote(title, 0))
+          .to.be.revertedWith("Option can't be EMPTY");
+      })
+
+      it("should be not able to vote if the leader already voted", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await groupMemberContract.vote(title, 1)
+
+        await expect(groupMemberContract.vote(title, 1))
+          .to.be.revertedWith("Leader already voted");
+      })
+    })
+
+    describe("closeVoting", () => {
+      it("should close a voting", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(3)
+      })
+
+      it("should close a voting with APPROVED status if the APPROVED votes are greater than the DENIED votes", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await groupMemberContract.vote(title, 1)
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(2)
+      })
+
+      it("should close a voting with DENIED status if the DENIED votes are greater than the APPROVED votes", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await groupMemberContract.vote(title, 3)
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(3)
+      })
+
+      it("should close a voting with DENIED status if DENIED votes are equal to the APPROVED votes", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        await contract.addLeader(groupMember.address, 1)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await groupMemberContract.vote(title, 3)
+        await contract.vote(title, 2)
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(3)
+      })
+
+      it("should be not able to close a voting if the topic is not in VOTING status", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("Only VOTING topics can be closed");
+      })
+
+      it("should be not able to close a voting if sender is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description")
+
+        await contract.openVoting(title)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.closeVoting(title))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
+    })
+  })
 });

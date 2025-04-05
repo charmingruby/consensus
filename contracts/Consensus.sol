@@ -17,6 +17,13 @@ contract Consensus {
         DENIED
     }
 
+    enum Options {
+        EMPTY,
+        YES,
+        NO,
+        ABSTAINTION
+    }
+
     struct Topic {
         string title;
         string description;
@@ -26,7 +33,15 @@ contract Consensus {
         uint256 endDate;
     }
 
+    struct Vote {
+        address leader;
+        uint8 group;
+        Options option;
+        uint256 createdAt;
+    }
+
     mapping(bytes32 => Topic) private _topics;
+    mapping(bytes32 => Vote[]) private _votings;
 
     constructor() {
         _manager = msg.sender;
@@ -34,6 +49,90 @@ contract Consensus {
         for (uint8 i = 1; i <= 10; i++) {
             _groups[i] = true;
         }
+    }
+
+    function openVoting(string memory _title) external restrictedToManager {
+        require(topicExists(_title), "Topic does not exists");
+
+        Topic memory topic = getTopic(_title);
+
+        require(
+            topic.status == Status.IDLE,
+            "Only IDLE topics can be open for voting"
+        );
+
+        bytes32 topicId = keccak256(bytes(_title));
+
+        _topics[topicId].status = Status.VOTING;
+        _topics[topicId].startDate = block.timestamp;
+    }
+
+    function vote(
+        string memory _title,
+        Options _option
+    ) external restrictedToGroupLeaders {
+        require(topicExists(_title), "Topic does not exists");
+        require(_option != Options.EMPTY, "Option can't be EMPTY");
+
+        Topic memory topic = getTopic(_title);
+        require(
+            topic.status == Status.VOTING,
+            "Only VOTING topics can be voted"
+        );
+
+        uint8 groupId = _leaders[msg.sender];
+
+        bytes32 topicId = keccak256(bytes(_title));
+        Vote[] memory votes = _votings[topicId];
+        for (uint256 i = 0; i < votes.length; i++) {
+            if (votes[i].leader == msg.sender) {
+                revert("Leader already voted");
+            }
+        }
+
+        Vote memory newVote = Vote({
+            leader: msg.sender,
+            group: groupId,
+            option: _option,
+            createdAt: block.timestamp
+        });
+
+        _votings[topicId].push(newVote);
+    }
+
+    function closeVoting(string memory _title) external restrictedToManager {
+        Topic memory topic = getTopic(_title);
+        require(
+            topic.status == Status.VOTING,
+            "Only VOTING topics can be closed"
+        );
+
+        uint256 approved = 0;
+        uint256 denied = 0;
+        uint256 abstention = 0;
+
+        bytes32 topicId = keccak256(bytes(_title));
+        Vote[] memory votes = _votings[topicId];
+
+        for (uint256 i = 0; i < votes.length; i++) {
+            if (votes[i].option == Options.YES) {
+                approved++;
+            } else if (votes[i].option == Options.NO) {
+                denied++;
+            } else {
+                abstention++;
+            }
+        }
+
+        if (approved > denied) {
+            _topics[topicId].status = Status.APPROVED;
+        } else if (denied > approved) {
+            _topics[topicId].status = Status.DENIED;
+        } else {
+            _topics[topicId].status = Status.DENIED;
+        }
+
+        _topics[topicId].endDate = block.timestamp;
     }
 
     function addLeader(
@@ -117,6 +216,13 @@ contract Consensus {
         delete _topics[keccak256(bytes(_title))];
     }
 
+    function numberOfVotes(
+        string memory _title
+    ) external view returns (uint256) {
+        bytes32 topicId = keccak256(bytes(_title));
+        return _votings[topicId].length;
+    }
+
     function getTopic(string memory _title) public view returns (Topic memory) {
         bytes32 topicId = keccak256(bytes(_title));
         return _topics[topicId];
@@ -126,16 +232,16 @@ contract Consensus {
         return _groups[_groupId];
     }
 
+    function topicExists(string memory _title) public view returns (bool) {
+        return getTopic(_title).createdAt > 0;
+    }
+
     function isCounselor(address _counselor) public view returns (bool) {
         return _counselors[_counselor];
     }
 
     function isLeader(address _groupLeader) public view returns (bool) {
         return _leaders[_groupLeader] > 0;
-    }
-
-    function topicExists(string memory _title) public view returns (bool) {
-        return getTopic(_title).createdAt > 0;
     }
 
     modifier restrictedToManager() {
