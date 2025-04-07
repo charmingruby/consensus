@@ -4,44 +4,16 @@ pragma solidity ^0.8.28;
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-contract Consensus {
+import "./IConsensus.sol";
+import "./ConsensusLib.sol";
+
+contract Consensus is IConsensus {
     address private _manager;
     mapping(address => bool) private _counselors;
     mapping(address => uint8) private _leaders;
     mapping(uint8 => bool) private _groups;
-
-    enum Status {
-        IDLE,
-        VOTING,
-        APPROVED,
-        DENIED
-    }
-
-    enum Options {
-        EMPTY,
-        YES,
-        NO,
-        ABSTAINTION
-    }
-
-    struct Topic {
-        string title;
-        string description;
-        Status status;
-        uint256 createdAt;
-        uint256 startDate;
-        uint256 endDate;
-    }
-
-    struct Vote {
-        address leader;
-        uint8 group;
-        Options option;
-        uint256 createdAt;
-    }
-
-    mapping(bytes32 => Topic) private _topics;
-    mapping(bytes32 => Vote[]) private _votings;
+    mapping(bytes32 => ConsensusLib.Topic) private _topics;
+    mapping(bytes32 => ConsensusLib.Vote[]) private _votings;
 
     constructor() {
         _manager = msg.sender;
@@ -54,43 +26,43 @@ contract Consensus {
     function openVoting(string memory _title) external restrictedToManager {
         require(topicExists(_title), "Topic does not exists");
 
-        Topic memory topic = getTopic(_title);
+        ConsensusLib.Topic memory topic = getTopic(_title);
 
         require(
-            topic.status == Status.IDLE,
+            topic.status == ConsensusLib.Status.IDLE,
             "Only IDLE topics can be open for voting"
         );
 
         bytes32 topicId = keccak256(bytes(_title));
 
-        _topics[topicId].status = Status.VOTING;
+        _topics[topicId].status = ConsensusLib.Status.VOTING;
         _topics[topicId].startDate = block.timestamp;
     }
 
     function vote(
         string memory _title,
-        Options _option
+        ConsensusLib.Options _option
     ) external restrictedToGroupLeaders {
         require(topicExists(_title), "Topic does not exists");
-        require(_option != Options.EMPTY, "Option can't be EMPTY");
+        require(_option != ConsensusLib.Options.EMPTY, "Option can't be EMPTY");
 
-        Topic memory topic = getTopic(_title);
+        ConsensusLib.Topic memory topic = getTopic(_title);
         require(
-            topic.status == Status.VOTING,
+            topic.status == ConsensusLib.Status.VOTING,
             "Only VOTING topics can be voted"
         );
 
         uint8 groupId = _leaders[msg.sender];
 
         bytes32 topicId = keccak256(bytes(_title));
-        Vote[] memory votes = _votings[topicId];
+        ConsensusLib.Vote[] memory votes = _votings[topicId];
         for (uint256 i = 0; i < votes.length; i++) {
             if (votes[i].leader == msg.sender) {
                 revert("Leader already voted");
             }
         }
 
-        Vote memory newVote = Vote({
+        ConsensusLib.Vote memory newVote = ConsensusLib.Vote({
             leader: msg.sender,
             group: groupId,
             option: _option,
@@ -101,9 +73,9 @@ contract Consensus {
     }
 
     function closeVoting(string memory _title) external restrictedToManager {
-        Topic memory topic = getTopic(_title);
+        ConsensusLib.Topic memory topic = getTopic(_title);
         require(
-            topic.status == Status.VOTING,
+            topic.status == ConsensusLib.Status.VOTING,
             "Only VOTING topics can be closed"
         );
 
@@ -112,12 +84,12 @@ contract Consensus {
         uint256 abstention = 0;
 
         bytes32 topicId = keccak256(bytes(_title));
-        Vote[] memory votes = _votings[topicId];
+        ConsensusLib.Vote[] memory votes = _votings[topicId];
 
         for (uint256 i = 0; i < votes.length; i++) {
-            if (votes[i].option == Options.YES) {
+            if (votes[i].option == ConsensusLib.Options.YES) {
                 approved++;
-            } else if (votes[i].option == Options.NO) {
+            } else if (votes[i].option == ConsensusLib.Options.NO) {
                 denied++;
             } else {
                 abstention++;
@@ -125,11 +97,11 @@ contract Consensus {
         }
 
         if (approved > denied) {
-            _topics[topicId].status = Status.APPROVED;
+            _topics[topicId].status = ConsensusLib.Status.APPROVED;
         } else if (denied > approved) {
-            _topics[topicId].status = Status.DENIED;
+            _topics[topicId].status = ConsensusLib.Status.DENIED;
         } else {
-            _topics[topicId].status = Status.DENIED;
+            _topics[topicId].status = ConsensusLib.Status.DENIED;
         }
 
         _topics[topicId].endDate = block.timestamp;
@@ -194,10 +166,10 @@ contract Consensus {
     ) external restrictedToGroupLeaders {
         require(!topicExists(_title), "Topic already exists");
 
-        Topic memory newTopic = Topic({
+        ConsensusLib.Topic memory newTopic = ConsensusLib.Topic({
             title: _title,
             description: _description,
-            status: Status.IDLE,
+            status: ConsensusLib.Status.IDLE,
             createdAt: block.timestamp,
             startDate: 0,
             endDate: 0
@@ -209,9 +181,12 @@ contract Consensus {
     function removeTopic(string memory _title) external restrictedToManager {
         require(topicExists(_title), "Topic does not exists");
 
-        Topic memory topic = getTopic(_title);
+        ConsensusLib.Topic memory topic = getTopic(_title);
 
-        require(topic.status == Status.IDLE, "Only IDLE topics can be removed");
+        require(
+            topic.status == ConsensusLib.Status.IDLE,
+            "Only IDLE topics can be removed"
+        );
 
         delete _topics[keccak256(bytes(_title))];
     }
@@ -223,7 +198,9 @@ contract Consensus {
         return _votings[topicId].length;
     }
 
-    function getTopic(string memory _title) public view returns (Topic memory) {
+    function getTopic(
+        string memory _title
+    ) public view returns (ConsensusLib.Topic memory) {
         bytes32 topicId = keccak256(bytes(_title));
         return _topics[topicId];
     }
