@@ -5,15 +5,15 @@ pragma solidity ^0.8.28;
 // import "hardhat/console.sol";
 
 import "./IConsensus.sol";
-import "./ConsensusLib.sol";
+import {ConsensusLib as Lib} from "./ConsensusLib.sol";
 
 contract Consensus is IConsensus {
     address private _manager;
     mapping(address => bool) private _counselors;
     mapping(address => uint8) private _leaders;
     mapping(uint8 => bool) private _groups;
-    mapping(bytes32 => ConsensusLib.Topic) private _topics;
-    mapping(bytes32 => ConsensusLib.Vote[]) private _votings;
+    mapping(bytes32 => Lib.Topic) private _topics;
+    mapping(bytes32 => Lib.Vote[]) private _votings;
 
     constructor() {
         _manager = msg.sender;
@@ -26,43 +26,43 @@ contract Consensus is IConsensus {
     function openVoting(string memory _title) external restrictedToManager {
         require(topicExists(_title), "Topic does not exists");
 
-        ConsensusLib.Topic memory topic = getTopic(_title);
+        Lib.Topic memory topic = getTopic(_title);
 
         require(
-            topic.status == ConsensusLib.Status.IDLE,
+            topic.status == Lib.Status.IDLE,
             "Only IDLE topics can be open for voting"
         );
 
         bytes32 topicId = keccak256(bytes(_title));
 
-        _topics[topicId].status = ConsensusLib.Status.VOTING;
+        _topics[topicId].status = Lib.Status.VOTING;
         _topics[topicId].startDate = block.timestamp;
     }
 
     function vote(
         string memory _title,
-        ConsensusLib.Options _option
+        Lib.Options _option
     ) external restrictedToGroupLeaders {
         require(topicExists(_title), "Topic does not exists");
-        require(_option != ConsensusLib.Options.EMPTY, "Option can't be EMPTY");
+        require(_option != Lib.Options.EMPTY, "Option can't be EMPTY");
 
-        ConsensusLib.Topic memory topic = getTopic(_title);
+        Lib.Topic memory topic = getTopic(_title);
         require(
-            topic.status == ConsensusLib.Status.VOTING,
+            topic.status == Lib.Status.VOTING,
             "Only VOTING topics can be voted"
         );
 
         uint8 groupId = _leaders[msg.sender];
 
         bytes32 topicId = keccak256(bytes(_title));
-        ConsensusLib.Vote[] memory votes = _votings[topicId];
+        Lib.Vote[] memory votes = _votings[topicId];
         for (uint256 i = 0; i < votes.length; i++) {
             if (votes[i].leader == msg.sender) {
                 revert("Leader already voted");
             }
         }
 
-        ConsensusLib.Vote memory newVote = ConsensusLib.Vote({
+        Lib.Vote memory newVote = Lib.Vote({
             leader: msg.sender,
             group: groupId,
             option: _option,
@@ -73,9 +73,9 @@ contract Consensus is IConsensus {
     }
 
     function closeVoting(string memory _title) external restrictedToManager {
-        ConsensusLib.Topic memory topic = getTopic(_title);
+        Lib.Topic memory topic = getTopic(_title);
         require(
-            topic.status == ConsensusLib.Status.VOTING,
+            topic.status == Lib.Status.VOTING,
             "Only VOTING topics can be closed"
         );
 
@@ -84,12 +84,12 @@ contract Consensus is IConsensus {
         uint256 abstention = 0;
 
         bytes32 topicId = keccak256(bytes(_title));
-        ConsensusLib.Vote[] memory votes = _votings[topicId];
+        Lib.Vote[] memory votes = _votings[topicId];
 
         for (uint256 i = 0; i < votes.length; i++) {
-            if (votes[i].option == ConsensusLib.Options.YES) {
+            if (votes[i].option == Lib.Options.YES) {
                 approved++;
-            } else if (votes[i].option == ConsensusLib.Options.NO) {
+            } else if (votes[i].option == Lib.Options.NO) {
                 denied++;
             } else {
                 abstention++;
@@ -97,11 +97,11 @@ contract Consensus is IConsensus {
         }
 
         if (approved > denied) {
-            _topics[topicId].status = ConsensusLib.Status.APPROVED;
+            _topics[topicId].status = Lib.Status.APPROVED;
         } else if (denied > approved) {
-            _topics[topicId].status = ConsensusLib.Status.DENIED;
+            _topics[topicId].status = Lib.Status.DENIED;
         } else {
-            _topics[topicId].status = ConsensusLib.Status.DENIED;
+            _topics[topicId].status = Lib.Status.DENIED;
         }
 
         _topics[topicId].endDate = block.timestamp;
@@ -166,10 +166,10 @@ contract Consensus is IConsensus {
     ) external restrictedToGroupLeaders {
         require(!topicExists(_title), "Topic already exists");
 
-        ConsensusLib.Topic memory newTopic = ConsensusLib.Topic({
+        Lib.Topic memory newTopic = Lib.Topic({
             title: _title,
             description: _description,
-            status: ConsensusLib.Status.IDLE,
+            status: Lib.Status.IDLE,
             createdAt: block.timestamp,
             startDate: 0,
             endDate: 0
@@ -181,10 +181,10 @@ contract Consensus is IConsensus {
     function removeTopic(string memory _title) external restrictedToManager {
         require(topicExists(_title), "Topic does not exists");
 
-        ConsensusLib.Topic memory topic = getTopic(_title);
+        Lib.Topic memory topic = getTopic(_title);
 
         require(
-            topic.status == ConsensusLib.Status.IDLE,
+            topic.status == Lib.Status.IDLE,
             "Only IDLE topics can be removed"
         );
 
@@ -200,7 +200,7 @@ contract Consensus is IConsensus {
 
     function getTopic(
         string memory _title
-    ) public view returns (ConsensusLib.Topic memory) {
+    ) public view returns (Lib.Topic memory) {
         bytes32 topicId = keccak256(bytes(_title));
         return _topics[topicId];
     }

@@ -4,12 +4,12 @@ pragma solidity ^0.8.28;
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-import "./ConsensusLib.sol";
+import {ConsensusLib as Lib} from "./ConsensusLib.sol";
 
 interface IConsensus {
     function openVoting(string memory title) external;
 
-    function vote(string memory title, ConsensusLib.Options _option) external;
+    function vote(string memory title, Lib.Options _option) external;
 
     function closeVoting(string memory title) external;
 
