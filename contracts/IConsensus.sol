@@ -23,7 +23,13 @@ interface IConsensus {
 
     function setCounselor(address counselor, bool _isEntering) external;
 
-    function addTopic(string memory title, string memory _description) external;
+    function addTopic(
+        string memory title,
+        string memory _description,
+        Lib.Category _category,
+        uint amount,
+        address responsible
+    ) external;
 
     function removeTopic(string memory title) external;
 

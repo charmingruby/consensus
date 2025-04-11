@@ -59,9 +59,12 @@ contract ConsensusAdapter {
 
     function addTopic(
         string memory title,
-        string memory _description
+        string memory _description,
+        Lib.Category _category,
+        uint amount,
+        address responsible
     ) external {
-        _impl.addTopic(title, _description);
+        _impl.addTopic(title, _description, _category, amount, responsible);
     }
 
     function removeTopic(string memory title) external {

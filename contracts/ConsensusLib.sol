@@ -19,10 +19,20 @@ library ConsensusLib {
         ABSTAINTION
     }
 
+    enum Category {
+        DECISION,
+        SPENT,
+        CHANGE_QUOTA,
+        CHANGE_MANAGER
+    }
+
     struct Topic {
         string title;
         string description;
         Status status;
+        Category category;
+        uint amount;
+        address responsible;
         uint256 createdAt;
         uint256 startDate;
         uint256 endDate;

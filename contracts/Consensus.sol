@@ -9,6 +9,8 @@ import {ConsensusLib as Lib} from "./ConsensusLib.sol";
 
 contract Consensus is IConsensus {
     address private _manager;
+    uint256 private _monthlyQuota = 0.01 ether;
+
     mapping(address => bool) private _counselors;
     mapping(address => uint8) private _leaders;
     mapping(uint8 => bool) private _groups;
@@ -79,6 +81,17 @@ contract Consensus is IConsensus {
             "Only VOTING topics can be closed"
         );
 
+        uint8 minVotes = 5;
+
+        if (topic.category == Lib.Category.SPENT) minVotes = 10;
+        else if (topic.category == Lib.Category.CHANGE_QUOTA) minVotes = 15;
+        else if (topic.category == Lib.Category.CHANGE_MANAGER) minVotes = 20;
+
+        require(
+            numberOfVotes(_title) >= minVotes,
+            "You cannot close the voting because there are not enough votes"
+        );
+
         uint256 approved = 0;
         uint256 denied = 0;
         uint256 abstention = 0;
@@ -87,24 +100,23 @@ contract Consensus is IConsensus {
         Lib.Vote[] memory votes = _votings[topicId];
 
         for (uint256 i = 0; i < votes.length; i++) {
-            if (votes[i].option == Lib.Options.YES) {
-                approved++;
-            } else if (votes[i].option == Lib.Options.NO) {
-                denied++;
-            } else {
-                abstention++;
-            }
+            if (votes[i].option == Lib.Options.YES) approved++;
+            else if (votes[i].option == Lib.Options.NO) denied++;
+            else abstention++;
         }
 
-        if (approved > denied) {
-            _topics[topicId].status = Lib.Status.APPROVED;
-        } else if (denied > approved) {
-            _topics[topicId].status = Lib.Status.DENIED;
-        } else {
-            _topics[topicId].status = Lib.Status.DENIED;
-        }
+        Lib.Status newStatus = approved > denied
+            ? Lib.Status.APPROVED
+            : Lib.Status.DENIED;
 
+        _topics[topicId].status = newStatus;
         _topics[topicId].endDate = block.timestamp;
+
+        if (newStatus == Lib.Status.APPROVED)
+            if (topic.category == Lib.Category.CHANGE_QUOTA)
+                _monthlyQuota = topic.amount;
+            else if (topic.category == Lib.Category.CHANGE_MANAGER)
+                _manager = topic.responsible;
     }
 
     function addLeader(
@@ -162,14 +174,28 @@ contract Consensus is IConsensus {
 
     function addTopic(
         string memory _title,
-        string memory _description
+        string memory _description,
+        Lib.Category _category,
+        uint _amount,
+        address _responsible
     ) external restrictedToGroupLeaders {
         require(!topicExists(_title), "Topic already exists");
+
+        if (_amount > 0) {
+            require(
+                _category == Lib.Category.SPENT ||
+                    _category == Lib.Category.CHANGE_QUOTA,
+                "Wrong category"
+            );
+        }
 
         Lib.Topic memory newTopic = Lib.Topic({
             title: _title,
             description: _description,
             status: Lib.Status.IDLE,
+            category: _category,
+            amount: _amount,
+            responsible: _responsible != address(0) ? _responsible : tx.origin,
             createdAt: block.timestamp,
             startDate: 0,
             endDate: 0
@@ -191,9 +217,7 @@ contract Consensus is IConsensus {
         delete _topics[keccak256(bytes(_title))];
     }
 
-    function numberOfVotes(
-        string memory _title
-    ) external view returns (uint256) {
+    function numberOfVotes(string memory _title) public view returns (uint256) {
         bytes32 topicId = keccak256(bytes(_title));
         return _votings[topicId].length;
     }
