@@ -7,7 +7,7 @@ pragma solidity ^0.8.28;
 import "./IConsensus.sol";
 
 contract ConsensusAdapter {
-    IConsensus private _contract;
+    IConsensus private _impl;
     address private immutable _owner;
 
     constructor() {
@@ -18,55 +18,59 @@ contract ConsensusAdapter {
         require(msg.sender == _owner, "Only owner can upgrade");
         require(_newContract != address(0), "New contract address cannot be 0");
 
-        _contract = IConsensus(_newContract);
+        _impl = IConsensus(_newContract);
+    }
+
+    function getImplAddress() external view returns (address) {
+        return address(_impl);
     }
 
     function openVoting(string memory title) external {
-        _contract.openVoting(title);
+        _impl.openVoting(title);
     }
 
     function vote(string memory title, Lib.Options _option) external {
-        _contract.vote(title, _option);
+        _impl.vote(title, _option);
     }
 
     function closeVoting(string memory title) external {
-        _contract.closeVoting(title);
+        _impl.closeVoting(title);
     }
 
     function addLeader(address leader, uint8 _groupId) external {
-        _contract.addLeader(leader, _groupId);
+        _impl.addLeader(leader, _groupId);
     }
 
     function removeLeader(address leader, uint8 _groupId) external {
-        _contract.removeLeader(leader, _groupId);
+        _impl.removeLeader(leader, _groupId);
     }
 
     function setManager(address newManager) external {
-        _contract.setManager(newManager);
+        _impl.setManager(newManager);
     }
 
     function getManager() external view returns (address) {
-        return _contract.getManager();
+        return _impl.getManager();
     }
 
     function setCounselor(address counselor, bool _isEntering) external {
-        _contract.setCounselor(counselor, _isEntering);
+        _impl.setCounselor(counselor, _isEntering);
     }
 
     function addTopic(
         string memory title,
         string memory _description
     ) external {
-        _contract.addTopic(title, _description);
+        _impl.addTopic(title, _description);
     }
 
     function removeTopic(string memory title) external {
-        _contract.removeTopic(title);
+        _impl.removeTopic(title);
     }
 
     function numberOfVotes(
         string memory title
     ) external view returns (uint256) {
-        return _contract.numberOfVotes(title);
+        return _impl.numberOfVotes(title);
     }
 }
