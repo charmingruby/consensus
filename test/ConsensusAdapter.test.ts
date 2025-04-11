@@ -45,5 +45,194 @@ describe("Consensus", () => {
                     .to.be.revertedWith("Only owner can upgrade");
             });
         });
+
+        describe("implementation", () => {
+            it("openVoting", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await contract.addTopic(title, "Test Description")
+
+                await adapter.openVoting(title)
+
+                const topic = await contract.getTopic(title)
+
+                expect(topic.status).to.equal(1)
+            })
+
+            it("closeVoting", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+                await contract.addTopic(title, "Test Description")
+
+                await contract.openVoting(title)
+
+                await adapter.closeVoting(title)
+
+                const topic = await contract.getTopic(title)
+
+                expect(topic.status).to.equal(3)
+            })
+
+            it("vote", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await contract.addTopic(title, "Test Description")
+
+                await contract.openVoting(title)
+
+                await adapter.vote(title, 1)
+
+                expect(await contract.numberOfVotes(title)).to.be.equal(1)
+            })
+
+            it("addLeader", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const groupMember = baseAccounts[0]
+
+                await adapter.addLeader(groupMember.address, 1)
+
+                expect(await contract.isLeader(groupMember.address)).to.equal(true);
+            })
+
+            it("removeLeader", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const groupMember = baseAccounts[0]
+
+                await contract.addLeader(groupMember.address, 1)
+
+                expect(await contract.isLeader(groupMember.address)).to.equal(true);
+
+                await adapter.removeLeader(groupMember.address, 1)
+
+                expect(await contract.isLeader(groupMember.address)).to.equal(false);
+            })
+
+            it("setManager", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const groupMember = baseAccounts[0]
+
+                await adapter.setManager(groupMember.address)
+
+                expect(await contract.getManager()).to.equal(groupMember.address);
+            })
+
+            it("getManager", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const groupMember = baseAccounts[0]
+
+                await adapter.setManager(groupMember.address)
+
+                expect(await adapter.getManager()).to.equal(groupMember.address);
+            })
+
+            it("setCounselor", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const groupMember = baseAccounts[0]
+
+                await contract.addLeader(groupMember.address, 1)
+
+                await adapter.setCounselor(groupMember.address, true)
+
+                expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+            })
+
+            it("addTopic", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await contract.addTopic(title, "Test Description")
+
+                const topic = await contract.getTopic("Test Topic")
+
+                expect(topic.title).to.equal(title)
+            })
+
+            it("removeTopic", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await contract.addTopic(title, "Test Description")
+
+                await adapter.removeTopic(title)
+
+                expect(await contract.topicExists(title)).to.equal(false)
+            })
+
+            it("numberOfVotes", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                const groupMember = baseAccounts[0]
+
+                await contract.addTopic(title, "Test Description")
+
+                await contract.openVoting(title)
+
+                await contract.addLeader(groupMember.address, 1)
+
+                const groupMemberContract = contract.connect(groupMember)
+
+                await groupMemberContract.vote(title, 1)
+
+                expect(await adapter.numberOfVotes(title)).to.be.equal(1)
+            })
+        })
     });
 });

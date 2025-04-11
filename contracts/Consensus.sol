@@ -52,18 +52,18 @@ contract Consensus is IConsensus {
             "Only VOTING topics can be voted"
         );
 
-        uint8 groupId = _leaders[msg.sender];
+        uint8 groupId = _leaders[tx.origin];
 
         bytes32 topicId = keccak256(bytes(_title));
         Lib.Vote[] memory votes = _votings[topicId];
         for (uint256 i = 0; i < votes.length; i++) {
-            if (votes[i].leader == msg.sender) {
+            if (votes[i].leader == tx.origin) {
                 revert("Leader already voted");
             }
         }
 
         Lib.Vote memory newVote = Lib.Vote({
-            leader: msg.sender,
+            leader: tx.origin,
             group: groupId,
             option: _option,
             createdAt: block.timestamp
@@ -223,7 +223,7 @@ contract Consensus is IConsensus {
 
     modifier restrictedToManager() {
         require(
-            msg.sender == _manager,
+            tx.origin == _manager,
             "Only the manager can call this function"
         );
         _;
@@ -231,7 +231,7 @@ contract Consensus is IConsensus {
 
     modifier restrictedToCouncil() {
         require(
-            msg.sender == _manager || _counselors[msg.sender],
+            tx.origin == _manager || _counselors[tx.origin],
             "Only the council members can call this function"
         );
         _;
@@ -239,7 +239,7 @@ contract Consensus is IConsensus {
 
     modifier restrictedToGroupLeaders() {
         require(
-            msg.sender == _manager || isLeader(msg.sender),
+            tx.origin == _manager || isLeader(tx.origin),
             "Only the group leaders can call this function"
         );
         _;
