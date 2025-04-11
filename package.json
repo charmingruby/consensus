@@ -6,6 +6,7 @@
     "start": "npx hardhat node",
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
+    "coverage": "npx hardhat coverage",
     "deploy:dev": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network local"
   },
   "repository": {

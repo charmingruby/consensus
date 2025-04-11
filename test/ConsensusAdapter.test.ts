@@ -23,30 +23,32 @@ describe("Consensus", () => {
     }
 
     describe("ConsensusAdapter", () => {
-        describe("upgrade", () => {
-            it("should upgrade", async () => {
-                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+        describe("Proxy", () => {
+            describe("upgrade", () => {
+                it("should upgrade", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
-                const { contract } = await loadFixture(deployImplFixture);
+                    const { contract } = await loadFixture(deployImplFixture);
 
-                await adapter.upgrade(contract.getAddress());
+                    await adapter.upgrade(contract.getAddress());
 
-                expect(await adapter.getImplAddress()).to.equal(await contract.getAddress());
+                    expect(await adapter.getImplAddress()).to.equal(await contract.getAddress());
+                });
+
+                it("should not upgrade if not owner", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    const { contract } = await loadFixture(deployImplFixture);
+
+                    const adapterWithNotManagerAccount = adapter.connect(baseAccounts[0])
+
+                    await expect(adapterWithNotManagerAccount.upgrade(contract.getAddress()))
+                        .to.be.revertedWith("Only owner can upgrade");
+                });
             });
+        })
 
-            it("should not upgrade if not owner", async () => {
-                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
-
-                const { contract } = await loadFixture(deployImplFixture);
-
-                const adapterWithNotManagerAccount = adapter.connect(baseAccounts[0])
-
-                await expect(adapterWithNotManagerAccount.upgrade(contract.getAddress()))
-                    .to.be.revertedWith("Only owner can upgrade");
-            });
-        });
-
-        describe("implementation", () => {
+        describe("Implementation", () => {
             it("openVoting", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
