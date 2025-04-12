@@ -46,6 +46,15 @@ describe("Consensus", () => {
                     await expect(adapterWithNotManagerAccount.upgrade(contract.getAddress()))
                         .to.be.revertedWith("Only owner can upgrade");
                 });
+
+                it("should be not able to call impl functions if not upgraded", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    const { contract } = await loadFixture(deployImplFixture);
+
+                    await expect(adapter.getMonthlyQuota())
+                        .to.be.revertedWith("Contract not upgraded");
+                });
             });
         })
 

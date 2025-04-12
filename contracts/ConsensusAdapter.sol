@@ -25,39 +25,42 @@ contract ConsensusAdapter {
         return address(_impl);
     }
 
-    function openVoting(string memory title) external {
+    function openVoting(string memory title) external upgraded {
         _impl.openVoting(title);
     }
 
-    function vote(string memory title, Lib.Options _option) external {
+    function vote(string memory title, Lib.Options _option) external upgraded {
         _impl.vote(title, _option);
     }
 
-    function closeVoting(string memory title) external {
+    function closeVoting(string memory title) external upgraded {
         _impl.closeVoting(title);
     }
 
-    function addLeader(address leader, uint8 _groupId) external {
+    function addLeader(address leader, uint8 _groupId) external upgraded {
         _impl.addLeader(leader, _groupId);
     }
 
-    function removeLeader(address leader, uint8 _groupId) external {
+    function removeLeader(address leader, uint8 _groupId) external upgraded {
         _impl.removeLeader(leader, _groupId);
     }
 
-    function setManager(address newManager) external {
+    function setManager(address newManager) external upgraded {
         _impl.setManager(newManager);
     }
 
-    function getManager() external view returns (address) {
+    function getManager() external view upgraded returns (address) {
         return _impl.getManager();
     }
 
-    function getMonthlyQuota() external view returns (uint256) {
+    function getMonthlyQuota() external view upgraded returns (uint256) {
         return _impl.getMonthlyQuota();
     }
 
-    function setCounselor(address counselor, bool _isEntering) external {
+    function setCounselor(
+        address counselor,
+        bool _isEntering
+    ) external upgraded {
         _impl.setCounselor(counselor, _isEntering);
     }
 
@@ -67,17 +70,31 @@ contract ConsensusAdapter {
         Lib.Category _category,
         uint amount,
         address responsible
-    ) external {
+    ) external upgraded {
         _impl.addTopic(title, _description, _category, amount, responsible);
     }
 
-    function removeTopic(string memory title) external {
+    function removeTopic(string memory title) external upgraded {
         _impl.removeTopic(title);
+    }
+
+    function editTopic(
+        string memory title,
+        string memory _description,
+        uint amount,
+        address responsible
+    ) external upgraded {
+        _impl.editTopic(title, _description, amount, responsible);
     }
 
     function numberOfVotes(
         string memory title
-    ) external view returns (uint256) {
+    ) external view upgraded returns (uint256) {
         return _impl.numberOfVotes(title);
+    }
+
+    modifier upgraded() {
+        require(address(_impl) != address(0), "Contract not upgraded");
+        _;
     }
 }

@@ -7,33 +7,42 @@ pragma solidity ^0.8.28;
 import {ConsensusLib as Lib} from "./ConsensusLib.sol";
 
 interface IConsensus {
-    function openVoting(string memory title) external;
+    function openVoting(string memory _title) external;
 
-    function vote(string memory title, Lib.Options _option) external;
+    function vote(string memory _title, Lib.Options _option) external;
 
-    function closeVoting(string memory title) external;
+    function closeVoting(string memory _title) external;
 
-    function addLeader(address leader, uint8 _groupId) external;
+    function addLeader(address _leader, uint8 _groupId) external;
 
-    function removeLeader(address leader, uint8 _groupId) external;
+    function removeLeader(address _leader, uint8 _groupId) external;
 
-    function setManager(address newManager) external;
+    function setManager(address _newManager) external;
 
     function getManager() external view returns (address);
 
-    function setCounselor(address counselor, bool _isEntering) external;
+    function setCounselor(address _counselor, bool _isEntering) external;
 
     function getMonthlyQuota() external view returns (uint256);
 
-    function addTopic(
-        string memory title,
+    function editTopic(
+        string memory _topicToEdit,
         string memory _description,
-        Lib.Category _category,
-        uint amount,
-        address responsible
+        uint _amount,
+        address _responsible
     ) external;
 
-    function removeTopic(string memory title) external;
+    function addTopic(
+        string memory _title,
+        string memory _description,
+        Lib.Category _category,
+        uint _amount,
+        address _responsible
+    ) external;
 
-    function numberOfVotes(string memory title) external view returns (uint256);
+    function removeTopic(string memory _title) external;
+
+    function numberOfVotes(
+        string memory _title
+    ) external view returns (uint256);
 }
