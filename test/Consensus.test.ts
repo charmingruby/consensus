@@ -5,12 +5,12 @@ import { ethers } from "hardhat";
 
 describe("Consensus", () => {
   async function deployFixture() {
-    const [manager, groupMember] = await hre.ethers.getSigners();
+    const [manager, groupMember, ...otherAccounts] = await hre.ethers.getSigners();
 
     const Consensus = await hre.ethers.getContractFactory("Consensus");
     const contract = await Consensus.deploy();
 
-    return { contract, manager, groupMember };
+    return { contract, manager, groupMember, otherAccounts };
   }
 
   describe("Membership Management", () => {
@@ -242,7 +242,6 @@ describe("Consensus", () => {
   })
 
   describe("Topic Management", () => {
-    // TODO: Implement new addTopic
     describe("addTopic", () => {
       it("should add a topic", async () => {
         const { contract, manager, groupMember } = await loadFixture(deployFixture);
@@ -274,6 +273,44 @@ describe("Consensus", () => {
 
         await expect(groupMemberContract.addTopic("Test Topic", "Test Description", 1, 100, ethers.ZeroAddress))
           .to.be.revertedWith("Only the group leaders can call this function");
+      })
+
+      it("should be not able to add a topic if the amount is greater than 0 and the category is not DECISION", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await expect(contract.addTopic("Test Topic", "Test Description", 0, 1, ethers.ZeroAddress))
+          .to.be.revertedWith("No amount allowed for this category");
+      })
+
+      it("should be not able to add a topic if the amount is greater than 0 and the category is not CHANGE_MANAGER", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1)
+
+        await expect(contract.addTopic("Test Topic", "Test Description", 3, 1, ethers.ZeroAddress))
+          .to.be.revertedWith("No amount allowed for this category");
+      })
+
+      it("should define the responsible with the sender address if it is not defined", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addTopic("Test Topic", "Test Description", 1, 100, ethers.ZeroAddress)
+
+        const topic = await contract.getTopic("Test Topic")
+
+        expect(topic.responsible).to.equal(manager.address)
+      })
+
+      it("should define the responsible with the provided address", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addTopic("Test Topic", "Test Description", 1, 100, groupMember.address)
+
+        const topic = await contract.getTopic("Test Topic")
+
+        expect(topic.responsible).to.equal(groupMember.address)
       })
     })
 
@@ -354,6 +391,38 @@ describe("Consensus", () => {
   })
 
   describe("Voting Management", () => {
+    describe("getMonthlyQuota", () => {
+      it("should return the monthly quota", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        expect(await contract.getMonthlyQuota()).to.equal(ethers.parseEther("0.01"))
+      })
+    })
+
+    describe("numberOfVotes", () => {
+      it("should return the number of votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        const numberOfVotes = 3
+
+        for (let i = 0; i < numberOfVotes; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+
+          const groupMemberContract = contract.connect(otherAccounts[i])
+
+          await groupMemberContract.vote(title, 1)
+        }
+
+        expect(await contract.numberOfVotes(title)).to.equal(numberOfVotes)
+      })
+    })
+
     describe("openVoting", () => {
       it("should open a voting", async () => {
         const { contract, manager, groupMember } = await loadFixture(deployFixture);
@@ -405,7 +474,6 @@ describe("Consensus", () => {
       })
     })
 
-    // TODO: Implement new
     describe("vote", () => {
       it("should vote for a topic", async () => {
         const { contract, manager, groupMember } = await loadFixture(deployFixture);
@@ -505,116 +573,329 @@ describe("Consensus", () => {
       })
     })
 
-    // TODO: Implement new closeVoting
-    // describe("closeVoting", () => {
-    //   it("should close a voting", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
-    //     const title = "Test Topic"
+    describe("closeVoting", () => {
+      it("should close a voting", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+        const title = "Test Topic"
 
-    //     await contract.openVoting(title)
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     await contract.closeVoting(title)
+        await contract.openVoting(title)
 
-    //     const topic = await contract.getTopic(title)
+        for (let i = 0; i < 3; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
 
-    //     expect(topic.status).to.equal(3)
-    //   })
+        await contract.closeVoting(title)
 
-    //   it("should close a voting with APPROVED status if the APPROVED votes are greater than the DENIED votes", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
+        const topic = await contract.getTopic(title)
 
-    //     const title = "Test Topic"
+        expect(topic.status).to.equal(2)
+      })
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+      it("should be not able to close a voting if the topic does not exist", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     await contract.openVoting(title)
+        const title = "Test Topic"
 
-    //     await contract.addLeader(groupMember.address, 1)
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("Topic does not exists");
+      })
 
-    //     const groupMemberContract = contract.connect(groupMember)
+      it("should be not able to close a voting if the topic is not in VOTING status", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     await groupMemberContract.vote(title, 1)
+        const title = "Test Topic"
 
-    //     await contract.closeVoting(title)
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     const topic = await contract.getTopic(title)
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("Only VOTING topics can be closed");
+      })
 
-    //     expect(topic.status).to.equal(2)
-    //   })
+      it("should be not able to close a voting if sender is not a manager", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //   it("should close a voting with DENIED status if the DENIED votes are greater than the APPROVED votes", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
+        const title = "Test Topic"
 
-    //     const title = "Test Topic"
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+        await contract.openVoting(title)
 
-    //     await contract.openVoting(title)
+        for (let i = 0; i < 3; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
 
-    //     await contract.addLeader(groupMember.address, 1)
+        const groupMemberContract = contract.connect(groupMember)
 
-    //     const groupMemberContract = contract.connect(groupMember)
+        await expect(groupMemberContract.closeVoting(title))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
 
-    //     await groupMemberContract.vote(title, 3)
+      it("should be not able to close a voting if there are not enough votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     await contract.closeVoting(title)
+        const title = "Test Topic"
 
-    //     const topic = await contract.getTopic(title)
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     expect(topic.status).to.equal(3)
-    //   })
+        await contract.openVoting(title)
 
-    //   it("should close a voting with DENIED status if DENIED votes are equal to the APPROVED votes", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("You cannot close the voting because there are not enough votes");
+      })
 
-    //     const title = "Test Topic"
+      it("should to close a voting if the category is DECISION only if there are 5 votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+        const title = "Test Topic"
 
-    //     await contract.openVoting(title)
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     await contract.addLeader(groupMember.address, 1)
+        await contract.openVoting(title)
 
-    //     const groupMemberContract = contract.connect(groupMember)
+        for (let i = 0; i < 3; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
 
-    //     await groupMemberContract.vote(title, 3)
-    //     await contract.vote(title, 2)
+        await contract.closeVoting(title)
 
-    //     await contract.closeVoting(title)
+        const topic = await contract.getTopic(title)
 
-    //     const topic = await contract.getTopic(title)
+        expect(topic.status).to.equal(2)
+      })
 
-    //     expect(topic.status).to.equal(3)
-    //   })
+      it("should be not able to close a voting if the category is DECISION and there are not enough votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //   it("should be not able to close a voting if the topic is not in VOTING status", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
+        const title = "Test Topic"
 
-    //     const title = "Test Topic"
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+        await contract.openVoting(title)
 
-    //     await expect(contract.closeVoting(title))
-    //       .to.be.revertedWith("Only VOTING topics can be closed");
-    //   })
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("You cannot close the voting because there are not enough votes");
+      })
 
-    //   it("should be not able to close a voting if sender is not a manager", async () => {
-    //     const { contract, manager, groupMember } = await loadFixture(deployFixture);
+      it("should be not able to close a voting if the category is SPENT only if there are 10 votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
-    //     const title = "Test Topic"
+        const title = "Test Topic"
 
-    //     await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+        await contract.addTopic(title, "Test Description", 1, 0, ethers.ZeroAddress)
 
-    //     await contract.openVoting(title)
+        await contract.openVoting(title)
 
-    //     const groupMemberContract = contract.connect(groupMember)
+        for (let i = 0; i < 9; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
 
-    //     await expect(groupMemberContract.closeVoting(title))
-    //       .to.be.revertedWith("Only the manager can call this function");
-    //   })
-    // })
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(2)
+      })
+
+
+      it("should be not able to close a voting if the category is SPENT and there are not enough votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 1, 0, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("You cannot close the voting because there are not enough votes");
+      })
+
+      it("should be not able to close a voting if the category is CHANGE_QUOTA only if there are 10 votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 2, 1, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 12; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(2)
+      })
+
+
+      it("should be not able to close a voting if the category is CHANGE_QUOTA and there are not enough votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 2, 1, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("You cannot close the voting because there are not enough votes");
+      })
+
+      it("should be not able to close a voting if the category is CHANGE_MANAGER only if there are 10 votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 3, 0, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 18; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+          const groupMemberContract = contract.connect(otherAccounts[i])
+          await groupMemberContract.vote(title, 1)
+        }
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(2)
+      })
+
+
+      it("should be not able to close a voting if the category is CHANGE_MANAGER and there are not enough votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 3, 0, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        await expect(contract.closeVoting(title))
+          .to.be.revertedWith("You cannot close the voting because there are not enough votes");
+      })
+
+
+      it("should set the status to APPROVED if the approved votes are greater than the denied votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 7; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+
+          const groupMemberContract = contract.connect(otherAccounts[i])
+
+          if (i % 2 === 0) {
+            await groupMemberContract.vote(title, 1)
+            continue
+          }
+
+          await groupMemberContract.vote(title, 2)
+        }
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(2)
+      })
+
+      it("should set the status to DENIED if the denied votes are greater than or equal to the approved votes", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 7; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+
+          const groupMemberContract = contract.connect(otherAccounts[i])
+
+          if (i % 2 === 0) {
+            await groupMemberContract.vote(title, 2)
+            continue
+          }
+
+          await groupMemberContract.vote(title, 1)
+        }
+
+        await contract.closeVoting(title)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(3)
+      })
+
+      it("should set the new manager if the category is CHANGE_MANAGER", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 3, 0, groupMember.address)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 18; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+
+          const groupMemberContract = contract.connect(otherAccounts[i])
+
+          await groupMemberContract.vote(title, 1)
+        }
+
+        await contract.closeVoting(title)
+
+        expect(await contract.getManager()).to.equal(groupMember.address)
+      })
+
+      it("should set the new quota if the category is CHANGE_QUOTA", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+
+        await contract.addTopic(title, "Test Description", 2, 1, ethers.ZeroAddress)
+
+        await contract.openVoting(title)
+
+        for (let i = 0; i < 12; i++) {
+          await contract.addLeader(otherAccounts[i].address, 1)
+
+          const groupMemberContract = contract.connect(otherAccounts[i])
+
+          await groupMemberContract.vote(title, 1)
+        }
+
+        await contract.closeVoting(title)
+
+        expect(await contract.getMonthlyQuota()).to.equal(1)
+      })
+    })
   })
 });

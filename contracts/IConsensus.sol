@@ -23,6 +23,8 @@ interface IConsensus {
 
     function setCounselor(address counselor, bool _isEntering) external;
 
+    function getMonthlyQuota() external view returns (uint256);
+
     function addTopic(
         string memory title,
         string memory _description,

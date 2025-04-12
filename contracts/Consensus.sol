@@ -76,16 +76,18 @@ contract Consensus is IConsensus {
 
     function closeVoting(string memory _title) external restrictedToManager {
         Lib.Topic memory topic = getTopic(_title);
+
+        require(topic.createdAt > 0, "Topic does not exists");
         require(
             topic.status == Lib.Status.VOTING,
             "Only VOTING topics can be closed"
         );
 
-        uint8 minVotes = 5;
+        uint8 minVotes = 3;
 
-        if (topic.category == Lib.Category.SPENT) minVotes = 10;
-        else if (topic.category == Lib.Category.CHANGE_QUOTA) minVotes = 15;
-        else if (topic.category == Lib.Category.CHANGE_MANAGER) minVotes = 20;
+        if (topic.category == Lib.Category.SPENT) minVotes = 9;
+        else if (topic.category == Lib.Category.CHANGE_QUOTA) minVotes = 12;
+        else if (topic.category == Lib.Category.CHANGE_MANAGER) minVotes = 18;
 
         require(
             numberOfVotes(_title) >= minVotes,
@@ -185,7 +187,7 @@ contract Consensus is IConsensus {
             require(
                 _category == Lib.Category.SPENT ||
                     _category == Lib.Category.CHANGE_QUOTA,
-                "Wrong category"
+                "No amount allowed for this category"
             );
         }
 
@@ -227,6 +229,10 @@ contract Consensus is IConsensus {
     ) public view returns (Lib.Topic memory) {
         bytes32 topicId = keccak256(bytes(_title));
         return _topics[topicId];
+    }
+
+    function getMonthlyQuota() public view returns (uint256) {
+        return _monthlyQuota;
     }
 
     function groupExists(uint8 _groupId) public view returns (bool) {

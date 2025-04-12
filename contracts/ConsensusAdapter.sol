@@ -53,6 +53,10 @@ contract ConsensusAdapter {
         return _impl.getManager();
     }
 
+    function getMonthlyQuota() external view returns (uint256) {
+        return _impl.getMonthlyQuota();
+    }
+
     function setCounselor(address counselor, bool _isEntering) external {
         _impl.setCounselor(counselor, _isEntering);
     }
