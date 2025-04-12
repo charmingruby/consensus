@@ -1,6 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import hre from "hardhat";
 import { expect } from "chai";
+import { ethers } from "hardhat";
 
 describe("Consensus", () => {
     async function deployAdapterFixture() {
@@ -58,7 +59,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await adapter.openVoting(title)
 
@@ -75,15 +76,21 @@ describe("Consensus", () => {
                 await adapter.upgrade(contract.getAddress());
 
                 const title = "Test Topic"
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
                 await contract.openVoting(title)
+
+                for (let i = 0; i < 5; i++) {
+                    await contract.addLeader(baseAccounts[i].address, 1)
+                    const groupMemberContract = contract.connect(baseAccounts[i])
+                    await groupMemberContract.vote(title, 1)
+                }
 
                 await adapter.closeVoting(title)
 
                 const topic = await contract.getTopic(title)
 
-                expect(topic.status).to.equal(3)
+                expect(topic.status).to.equal(2)
             })
 
             it("vote", async () => {
@@ -95,7 +102,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await contract.openVoting(title)
 
@@ -189,7 +196,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 const topic = await contract.getTopic("Test Topic")
 
@@ -205,7 +212,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await adapter.removeTopic(title)
 
@@ -223,7 +230,7 @@ describe("Consensus", () => {
 
                 const groupMember = baseAccounts[0]
 
-                await contract.addTopic(title, "Test Description")
+                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await contract.openVoting(title)
 
