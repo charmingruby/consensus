@@ -50,6 +50,16 @@ describe("Consensus", () => {
         })
 
         describe("Implementation", () => {
+            it("getMonthlyQuota", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                expect(await adapter.getMonthlyQuota()).to.equal(ethers.parseEther("0.01"));
+            })
+
             it("openVoting", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -91,6 +101,20 @@ describe("Consensus", () => {
                 const topic = await contract.getTopic(title)
 
                 expect(topic.status).to.equal(2)
+            })
+
+            it("addTopic", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+
+                expect(await contract.topicExists(title)).to.equal(true)
             })
 
             it("vote", async () => {
@@ -185,22 +209,6 @@ describe("Consensus", () => {
                 await adapter.setCounselor(groupMember.address, true)
 
                 expect(await contract.isCounselor(groupMember.address)).to.equal(true);
-            })
-
-            it("addTopic", async () => {
-                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
-
-                const { contract } = await loadFixture(deployImplFixture);
-
-                await adapter.upgrade(contract.getAddress());
-
-                const title = "Test Topic"
-
-                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
-
-                const topic = await contract.getTopic("Test Topic")
-
-                expect(topic.title).to.equal(title)
             })
 
             it("removeTopic", async () => {
