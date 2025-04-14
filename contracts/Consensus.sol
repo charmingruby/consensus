@@ -25,6 +25,42 @@ contract Consensus is IConsensus {
         }
     }
 
+    function editTopic(
+        string memory _topicToEdit,
+        string memory _description,
+        uint _amount,
+        address _responsible
+    ) external restrictedToManager {
+        require(topicExists(_topicToEdit), "Topic does not exists");
+
+        Lib.Topic memory topic = getTopic(_topicToEdit);
+
+        require(
+            topic.status == Lib.Status.IDLE,
+            "Only IDLE topics can be edited"
+        );
+
+        bool descriptionChanged = bytes(_description).length > 0 &&
+            !compareStrings(_description, topic.description);
+
+        bool amountChanged = _amount >= 0 && _amount != topic.amount;
+
+        bool responsibleChanged = _responsible != address(0) &&
+            _responsible != topic.responsible;
+
+        bool hasChanged = descriptionChanged ||
+            amountChanged ||
+            responsibleChanged;
+
+        if (!hasChanged) revert("No changes");
+
+        bytes32 topicId = keccak256(bytes(_topicToEdit));
+
+        if (descriptionChanged) _topics[topicId].description = _description;
+        if (amountChanged) _topics[topicId].amount = _amount;
+        if (responsibleChanged) _topics[topicId].responsible = _responsible;
+    }
+
     function openVoting(string memory _title) external restrictedToManager {
         require(topicExists(_title), "Topic does not exists");
 
@@ -124,7 +160,7 @@ contract Consensus is IConsensus {
     function addLeader(
         address _leader,
         uint8 _groupId
-    ) external restrictedToCouncil {
+    ) external restrictedToCouncil validAddress(_leader) {
         require(groupExists(_groupId), "Group does not exists");
 
         _leaders[_leader] = _groupId;
@@ -142,7 +178,9 @@ contract Consensus is IConsensus {
         if (isCounselor(_leader)) delete _counselors[_leader];
     }
 
-    function setManager(address _newManager) external restrictedToManager {
+    function setManager(
+        address _newManager
+    ) external restrictedToManager validAddress(_newManager) {
         require(_newManager != address(0), "Address can't be null");
         require(
             _newManager != _manager,
@@ -159,7 +197,7 @@ contract Consensus is IConsensus {
     function setCounselor(
         address _counselor,
         bool _isEntering
-    ) external restrictedToManager {
+    ) external restrictedToManager validAddress(_counselor) {
         if (_isEntering) {
             require(!isCounselor(_counselor), "Counselor already exists");
             require(isLeader(_counselor), "Counselor is not a leader");
@@ -249,6 +287,18 @@ contract Consensus is IConsensus {
 
     function isLeader(address _groupLeader) public view returns (bool) {
         return _leaders[_groupLeader] > 0;
+    }
+
+    function compareStrings(
+        string memory _strA,
+        string memory _strB
+    ) public pure returns (bool) {
+        return keccak256(bytes(_strA)) == keccak256(bytes(_strB));
+    }
+
+    modifier validAddress(address _address) {
+        require(_address != address(0), "Address can't be null");
+        _;
     }
 
     modifier restrictedToManager() {

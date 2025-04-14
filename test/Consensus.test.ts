@@ -23,6 +23,13 @@ describe("Consensus", () => {
         expect(await contract.isLeader(groupMember.address)).to.equal(true);
       })
 
+      it("should be not able to add a leader to a group if the address is null", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.addLeader(ethers.ZeroAddress, 1))
+          .to.be.revertedWith("Address can't be null");
+      })
+
       it("should be not able to add a leader to a group that does not exist", async () => {
         const { contract, manager, groupMember } = await loadFixture(deployFixture);
 
@@ -124,6 +131,13 @@ describe("Consensus", () => {
         await contract.setCounselor(groupMember.address, true)
 
         expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+      })
+
+      it("should be not able to set a counselor if the address is null", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.setCounselor(ethers.ZeroAddress, true))
+          .to.be.revertedWith("Address can't be null");
       })
 
       it("should be not able to add a counselor if the address is already a counselor", async () => {
@@ -310,6 +324,130 @@ describe("Consensus", () => {
 
         const topic = await contract.getTopic("Test Topic")
 
+        expect(topic.responsible).to.equal(groupMember.address)
+      })
+    })
+
+    describe("editTopic", () => {
+      it("should edit a topic", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const topicTitle = "Test Topic"
+
+        await contract.addTopic(topicTitle, "Test Description", 1, 100, ethers.ZeroAddress)
+
+        const newDescription = "New Description"
+        const newAmount = 2
+        const newResponsible = groupMember.address
+
+        await contract.editTopic(topicTitle, newDescription, newAmount, newResponsible)
+
+        const topic = await contract.getTopic(topicTitle)
+
+        expect(topic.description).to.equal(newDescription)
+        expect(topic.amount).to.equal(newAmount)
+        expect(topic.responsible).to.equal(newResponsible)
+      })
+
+      it("should be not able to edit a topic if the topic does not exist", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await expect(contract.editTopic("Non Existent Topic", "New Description", 1, groupMember.address))
+          .to.be.revertedWith("Topic does not exists");
+      })
+
+      it("should be not able to edit a topic if is not a manager", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addTopic("Test Topic", "Test Description", 1, 100, ethers.ZeroAddress)
+
+        const groupMemberContract = contract.connect(groupMember)
+
+        await expect(groupMemberContract.editTopic("Test Topic", "New Description", 1, groupMember.address))
+          .to.be.revertedWith("Only the manager can call this function");
+      })
+
+
+      it("should be not able to edit a topic if the topic is not in IDLE status", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        await contract.addTopic("Test Topic", "Test Description", 1, 100, ethers.ZeroAddress)
+
+        await contract.openVoting("Test Topic")
+
+        await expect(contract.editTopic("Test Topic", "New Description", 1, groupMember.address))
+          .to.be.revertedWith("Only IDLE topics can be edited");
+      })
+
+      it("should be not able to edit the topic if the changes are the same as the current ones", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+        const description = "New Description"
+        const amount = 2
+        const responsible = groupMember.address
+
+        await contract.addTopic(title, description, 1, amount, responsible)
+
+        await expect(contract.editTopic(title, description, amount, responsible))
+          .to.be.revertedWith("No changes");
+      })
+
+      it("should be able to edit the topic if the description is different from the current one", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+        const description = "New Description"
+        const amount = 2
+        const responsible = groupMember.address
+
+        await contract.addTopic(title, description, 1, amount, responsible)
+
+        await contract.editTopic(title, `${description}-a`, amount, responsible)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.description).to.equal(`${description}-a`)
+        expect(topic.amount).to.equal(amount)
+        expect(topic.responsible).to.equal(responsible)
+      })
+
+      it("should be able to edit the topic if the amount is different from the current one", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+        const description = "New Description"
+        const amount = 2
+        const responsible = groupMember.address
+
+        await contract.addTopic(title, description, 1, amount, responsible)
+
+        await contract.editTopic(title, description, amount + 1, responsible)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.description).to.equal(description)
+        expect(topic.amount).to.equal(amount + 1)
+        expect(topic.responsible).to.equal(responsible)
+      })
+
+
+      it("should be able to edit the topic if the responsible is different from the current one", async () => {
+        const { contract, manager, groupMember } = await loadFixture(deployFixture);
+
+        const title = "Test Topic"
+        const description = "New Description"
+        const amount = 2
+        const responsible = groupMember.address
+
+        await contract.addTopic(title, description, 1, amount, ethers.ZeroAddress)
+
+        await contract.editTopic(title, description, amount, groupMember.address)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.description).to.equal(description)
+        expect(topic.amount).to.equal(amount)
         expect(topic.responsible).to.equal(groupMember.address)
       })
     })
