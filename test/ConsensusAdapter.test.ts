@@ -69,6 +69,12 @@ describe("Consensus", () => {
                 expect(await adapter.getMonthlyQuota()).to.equal(ethers.parseEther("0.01"));
             })
 
+            it("getMonthlyQuota not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.getMonthlyQuota()).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("openVoting", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -85,6 +91,12 @@ describe("Consensus", () => {
                 const topic = await contract.getTopic(title)
 
                 expect(topic.status).to.equal(1)
+            })
+
+            it("openVoting not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.openVoting("Test Topic")).to.be.revertedWith("Contract not upgraded");
             })
 
             it("closeVoting", async () => {
@@ -114,6 +126,12 @@ describe("Consensus", () => {
                 expect(topic.status).to.equal(2)
             })
 
+            it("closeVoting not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.closeVoting("Test Topic")).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("addTopic", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -127,6 +145,14 @@ describe("Consensus", () => {
 
                 expect(await contract.topicExists(title)).to.equal(true)
             })
+
+            it("addTopic not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.addTopic("Test Topic", "Test Description", 1, 100, ethers.ZeroAddress)).to.be.revertedWith("Contract not upgraded");
+            })
+
+
 
             it("vote", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
@@ -146,6 +172,12 @@ describe("Consensus", () => {
                 expect(await contract.numberOfVotes(title)).to.be.equal(1)
             })
 
+            it("vote not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.vote("Test Topic", 1)).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("addLeader", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -158,6 +190,12 @@ describe("Consensus", () => {
                 await adapter.addLeader(groupMember.address, 1)
 
                 expect(await contract.isLeader(groupMember.address)).to.equal(true);
+            })
+
+            it("addLeader not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.addLeader(baseAccounts[0].address, 1)).to.be.revertedWith("Contract not upgraded");
             })
 
             it("removeLeader", async () => {
@@ -178,6 +216,12 @@ describe("Consensus", () => {
                 expect(await contract.isLeader(groupMember.address)).to.equal(false);
             })
 
+            it("removeLeader not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.removeLeader(baseAccounts[0].address, 1)).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("payQuota", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -190,6 +234,12 @@ describe("Consensus", () => {
                 expect(await contract.getPayment(1)).to.greaterThan(0);
             })
 
+            it("payQuota not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.payQuota(1, { value: ethers.parseEther("0.01") })).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("getPayment", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -200,6 +250,12 @@ describe("Consensus", () => {
                 await adapter.payQuota(1, { value: ethers.parseEther("0.01") })
 
                 expect(await adapter.getPayment(1)).to.greaterThan(0);
+            })
+
+            it("getPayment not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.getPayment(1)).to.be.revertedWith("Contract not upgraded");
             })
 
             it("editTopic", async () => {
@@ -220,6 +276,12 @@ describe("Consensus", () => {
                 expect(topic.description).to.equal("Test Description 2");
             })
 
+            it("editTopic not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.editTopic("Test Topic", "Test Description 2", 100, ethers.ZeroAddress)).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("setManager", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -234,6 +296,12 @@ describe("Consensus", () => {
                 expect(await adapter.getManager()).to.equal(groupMember.address);
             })
 
+            it("setManager not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.setManager(baseAccounts[0].address)).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("getManager", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -246,6 +314,12 @@ describe("Consensus", () => {
                 await adapter.setManager(groupMember.address)
 
                 expect(await adapter.getManager()).to.equal(groupMember.address);
+            })
+
+            it("getManager not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.getManager()).to.be.revertedWith("Contract not upgraded");
             })
 
             it("setCounselor", async () => {
@@ -264,6 +338,12 @@ describe("Consensus", () => {
                 expect(await contract.isCounselor(groupMember.address)).to.equal(true);
             })
 
+            it("setCounselor not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.setCounselor(baseAccounts[0].address, true)).to.be.revertedWith("Contract not upgraded");
+            })
+
             it("removeTopic", async () => {
                 const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -278,6 +358,12 @@ describe("Consensus", () => {
                 await adapter.removeTopic(title)
 
                 expect(await contract.topicExists(title)).to.equal(false)
+            })
+
+            it("removeTopic not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.removeTopic("Test Topic")).to.be.revertedWith("Contract not upgraded");
             })
 
             it("numberOfVotes", async () => {
@@ -304,6 +390,12 @@ describe("Consensus", () => {
                 await groupMemberContract.vote(title, 1)
 
                 expect(await adapter.numberOfVotes(title)).to.be.equal(1)
+            })
+
+            it("numberOfVotes not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.numberOfVotes("Test Topic")).to.be.revertedWith("Contract not upgraded");
             })
         })
     });
