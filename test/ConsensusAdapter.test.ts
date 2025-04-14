@@ -78,7 +78,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await adapter.openVoting(title)
 
@@ -95,13 +95,15 @@ describe("Consensus", () => {
                 await adapter.upgrade(contract.getAddress());
 
                 const title = "Test Topic"
-                await contract.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
 
-                await contract.openVoting(title)
+                await adapter.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
+
+                await adapter.openVoting(title)
 
                 for (let i = 0; i < 5; i++) {
-                    await contract.addLeader(baseAccounts[i].address, 1)
+                    await adapter.addLeader(baseAccounts[i].address, 1)
                     const groupMemberContract = contract.connect(baseAccounts[i])
+                    await groupMemberContract.payQuota(i + 1, { value: ethers.parseEther("0.01") })
                     await groupMemberContract.vote(title, 1)
                 }
 
@@ -135,9 +137,9 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
-                await contract.openVoting(title)
+                await adapter.openVoting(title)
 
                 await adapter.vote(title, 1)
 
@@ -167,13 +169,55 @@ describe("Consensus", () => {
 
                 const groupMember = baseAccounts[0]
 
-                await contract.addLeader(groupMember.address, 1)
+                await adapter.addLeader(groupMember.address, 1)
 
                 expect(await contract.isLeader(groupMember.address)).to.equal(true);
 
                 await adapter.removeLeader(groupMember.address, 1)
 
                 expect(await contract.isLeader(groupMember.address)).to.equal(false);
+            })
+
+            it("payQuota", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                await adapter.payQuota(1, { value: ethers.parseEther("0.01") })
+
+                expect(await contract.getPayment(1)).to.greaterThan(0);
+            })
+
+            it("getPayment", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                await adapter.payQuota(1, { value: ethers.parseEther("0.01") })
+
+                expect(await adapter.getPayment(1)).to.greaterThan(0);
+            })
+
+            it("editTopic", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+
+                await adapter.editTopic(title, "Test Description 2", 100, ethers.ZeroAddress)
+
+                const topic = await contract.getTopic(title)
+
+                expect(topic.description).to.equal("Test Description 2");
             })
 
             it("setManager", async () => {
@@ -187,7 +231,7 @@ describe("Consensus", () => {
 
                 await adapter.setManager(groupMember.address)
 
-                expect(await contract.getManager()).to.equal(groupMember.address);
+                expect(await adapter.getManager()).to.equal(groupMember.address);
             })
 
             it("getManager", async () => {
@@ -213,7 +257,7 @@ describe("Consensus", () => {
 
                 const groupMember = baseAccounts[0]
 
-                await contract.addLeader(groupMember.address, 1)
+                await adapter.addLeader(groupMember.address, 1)
 
                 await adapter.setCounselor(groupMember.address, true)
 
@@ -229,7 +273,7 @@ describe("Consensus", () => {
 
                 const title = "Test Topic"
 
-                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
                 await adapter.removeTopic(title)
 
@@ -247,13 +291,15 @@ describe("Consensus", () => {
 
                 const groupMember = baseAccounts[0]
 
-                await contract.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
+                await adapter.addTopic(title, "Test Description", 1, 100, ethers.ZeroAddress)
 
-                await contract.openVoting(title)
+                await adapter.openVoting(title)
 
-                await contract.addLeader(groupMember.address, 1)
+                await adapter.addLeader(groupMember.address, 1)
 
                 const groupMemberContract = contract.connect(groupMember)
+
+                await groupMemberContract.payQuota(1, { value: ethers.parseEther("0.01") })
 
                 await groupMemberContract.vote(title, 1)
 

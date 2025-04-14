@@ -57,6 +57,10 @@ contract ConsensusAdapter {
         return _impl.getMonthlyQuota();
     }
 
+    function payQuota(uint8 _groupId) external payable upgraded {
+        _impl.payQuota{value: msg.value}(_groupId);
+    }
+
     function setCounselor(
         address counselor,
         bool _isEntering
@@ -85,6 +89,12 @@ contract ConsensusAdapter {
         address responsible
     ) external upgraded {
         _impl.editTopic(title, _description, amount, responsible);
+    }
+
+    function getPayment(
+        uint8 _groupId
+    ) external view upgraded returns (uint256) {
+        return _impl.getPayment(_groupId);
     }
 
     function numberOfVotes(

@@ -25,6 +25,10 @@ interface IConsensus {
 
     function getMonthlyQuota() external view returns (uint256);
 
+    function getPayment(uint8 _groupId) external view returns (uint256);
+
+    function payQuota(uint8 _groupId) external payable;
+
     function editTopic(
         string memory _topicToEdit,
         string memory _description,

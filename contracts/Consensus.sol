@@ -16,13 +16,32 @@ contract Consensus is IConsensus {
     mapping(uint8 => bool) private _groups;
     mapping(bytes32 => Lib.Topic) private _topics;
     mapping(bytes32 => Lib.Vote[]) private _votings;
+    mapping(uint8 => uint256) private _payments;
 
     constructor() {
         _manager = msg.sender;
 
-        for (uint8 i = 1; i <= 10; i++) {
+        for (uint8 i = 1; i <= 50; i++) {
             _groups[i] = true;
         }
+    }
+
+    function payQuota(uint8 _groupId) external payable {
+        require(groupExists(_groupId), "Group does not exists");
+        require(msg.value == _monthlyQuota, "Invalid amount");
+        require(
+            block.timestamp > _payments[_groupId] + (30 * 24 * 60 * 60),
+            "Payment already made"
+        );
+
+        _payments[_groupId] = block.timestamp;
+    }
+
+    function getPayment(uint8 _groupId) external view returns (uint256) {
+        require(groupExists(_groupId), "Group does not exists");
+        require(_payments[_groupId] > 0, "Payment not made");
+
+        return _payments[_groupId];
     }
 
     function editTopic(
@@ -321,6 +340,12 @@ contract Consensus is IConsensus {
         require(
             tx.origin == _manager || isLeader(tx.origin),
             "Only the group leaders can call this function"
+        );
+        require(
+            tx.origin == _manager ||
+                block.timestamp <
+                _payments[_leaders[tx.origin]] + (30 * 24 * 60 * 60),
+            "The leader must be defaulter"
         );
         _;
     }
