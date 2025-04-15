@@ -4,6 +4,9 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import type { Consensus } from "../typechain-types";
 import type { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { Status } from "./helpers/consensus-lib/status";
+import { Option } from "./helpers/consensus-lib/option";
+import { Category } from "./helpers/consensus-lib/category";
 
 describe("Consensus", () => {
   const MAX_GROUPS = 50;
@@ -344,7 +347,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -367,7 +370,7 @@ describe("Consensus", () => {
         await expect(groupMemberContract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         )).to.be.revertedWith("The leader must be defaulter")
@@ -383,7 +386,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -392,7 +395,7 @@ describe("Consensus", () => {
           contract.addTopic(
             title,
             "Test Description",
-            1,
+            Category.SPENT,
             100,
             ethers.ZeroAddress,
           ),
@@ -409,7 +412,7 @@ describe("Consensus", () => {
           groupMemberContract.addTopic(
             "Test Topic",
             "Test Description",
-            1,
+            Category.SPENT,
             100,
             ethers.ZeroAddress,
           ),
@@ -426,7 +429,7 @@ describe("Consensus", () => {
           contract.addTopic(
             "Test Topic",
             "Test Description",
-            0,
+            Category.DECISION,
             1,
             ethers.ZeroAddress,
           ),
@@ -443,7 +446,7 @@ describe("Consensus", () => {
           contract.addTopic(
             "Test Topic",
             "Test Description",
-            3,
+            Category.CHANGE_MANAGER,
             1,
             ethers.ZeroAddress,
           ),
@@ -457,7 +460,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           "Test Topic",
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -474,7 +477,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           "Test Topic",
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           groupMember.address,
         );
@@ -495,7 +498,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           topicTitle,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -526,7 +529,7 @@ describe("Consensus", () => {
           contract.editTopic(
             "Non Existent Topic",
             "New Description",
-            1,
+            Category.SPENT,
             groupMember.address,
           ),
         ).to.be.revertedWith("Topic does not exists");
@@ -539,7 +542,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           "Test Topic",
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -550,7 +553,7 @@ describe("Consensus", () => {
           groupMemberContract.editTopic(
             "Test Topic",
             "New Description",
-            1,
+            Category.SPENT,
             groupMember.address,
           ),
         ).to.be.revertedWith("Only the manager can call this function");
@@ -563,7 +566,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           "Test Topic",
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -574,7 +577,7 @@ describe("Consensus", () => {
           contract.editTopic(
             "Test Topic",
             "New Description",
-            1,
+            Category.SPENT,
             groupMember.address,
           ),
         ).to.be.revertedWith("Only IDLE topics can be edited");
@@ -683,7 +686,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -711,7 +714,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -734,7 +737,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -765,7 +768,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -795,7 +798,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -804,7 +807,7 @@ describe("Consensus", () => {
 
         const numberOfVotes = 3;
 
-        await generateVotes(contract, title, otherAccounts, 0, 3, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 3, Option.YES);
 
         expect(await contract.numberOfVotes(title)).to.equal(numberOfVotes);
       });
@@ -820,7 +823,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -829,7 +832,7 @@ describe("Consensus", () => {
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(1);
+        expect(topic.status).to.equal(Status.VOTING);
       });
 
       it("should be not able to open a voting if the topic does not exist", async () => {
@@ -852,7 +855,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -873,7 +876,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -896,7 +899,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -907,7 +910,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await groupMemberContract.vote(title, 1);
+        await groupMemberContract.vote(title, Option.YES);
 
         expect(await contract.numberOfVotes(title)).to.be.equal(1);
       });
@@ -921,7 +924,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -932,7 +935,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await expect(groupMemberContract.vote(title, 1)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.YES)).to.be.revertedWith(
           "The leader must be defaulter",
         );
       })
@@ -947,7 +950,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await expect(groupMemberContract.vote(title, 1)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.YES)).to.be.revertedWith(
           "Topic does not exists",
         );
       });
@@ -961,7 +964,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -970,7 +973,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await expect(groupMemberContract.vote(title, 1)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.YES)).to.be.revertedWith(
           "Only VOTING topics can be voted",
         );
       });
@@ -984,7 +987,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -993,7 +996,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await expect(groupMemberContract.vote(title, 1)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.YES)).to.be.revertedWith(
           "Only the group leaders can call this function",
         );
       });
@@ -1007,7 +1010,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -1018,7 +1021,7 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await expect(groupMemberContract.vote(title, 0)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.EMPTY)).to.be.revertedWith(
           "Option can't be EMPTY",
         );
       });
@@ -1032,7 +1035,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           ethers.ZeroAddress,
         );
@@ -1043,9 +1046,9 @@ describe("Consensus", () => {
 
         const groupMemberContract = contract.connect(groupMember);
 
-        await groupMemberContract.vote(title, 1);
+        await groupMemberContract.vote(title, Option.YES);
 
-        await expect(groupMemberContract.vote(title, 1)).to.be.revertedWith(
+        await expect(groupMemberContract.vote(title, Option.YES)).to.be.revertedWith(
           "Leader already voted",
         );
       });
@@ -1061,20 +1064,20 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 3, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 3, Option.YES);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should be not able to close a voting if the topic does not exist", async () => {
@@ -1097,7 +1100,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
@@ -1116,14 +1119,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 3, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 3, Option.YES);
 
         const groupMemberContract = contract.connect(groupMember);
 
@@ -1141,7 +1144,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
@@ -1153,7 +1156,7 @@ describe("Consensus", () => {
         );
       });
 
-      it("should to close a voting if the category is DECISION only if there are 5 votes", async () => {
+      it("should close a voting if the category is DECISION only if there are 5 votes", async () => {
         const { contract, manager, groupMember, otherAccounts } =
           await loadFixture(deployFixture);
 
@@ -1162,20 +1165,20 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 5, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 5, Option.YES);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should be not able to close a voting if the category is DECISION and there are not enough votes", async () => {
@@ -1187,7 +1190,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
@@ -1208,20 +1211,20 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 9, Option.YES);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should be not able to close a voting if the category is SPENT and there are not enough votes", async () => {
@@ -1233,7 +1236,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           0,
           ethers.ZeroAddress,
         );
@@ -1254,20 +1257,20 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          2,
+          Category.CHANGE_QUOTA,
           1,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 12, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 12, Option.YES);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should be not able to close a voting if the category is CHANGE_QUOTA and there are not enough votes", async () => {
@@ -1279,7 +1282,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          2,
+          Category.CHANGE_QUOTA,
           1,
           ethers.ZeroAddress,
         );
@@ -1300,20 +1303,20 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          3,
+          Category.CHANGE_MANAGER,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 18, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 18, Option.YES);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should be not able to close a voting if the category is CHANGE_MANAGER and there are not enough votes", async () => {
@@ -1325,7 +1328,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          3,
+          Category.CHANGE_MANAGER,
           0,
           ethers.ZeroAddress,
         );
@@ -1346,22 +1349,22 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 4, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 4, Option.YES);
 
-        await generateVotes(contract, title, otherAccounts, 4, 3, 2);
+        await generateVotes(contract, title, otherAccounts, 4, 3, Option.NO);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(2);
+        expect(topic.status).to.equal(Status.APPROVED);
       });
 
       it("should set the status to DENIED if the denied votes are greater than or equal to the approved votes", async () => {
@@ -1373,22 +1376,22 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          0,
+          Category.DECISION,
           0,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 3, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 3, Option.YES);
 
-        await generateVotes(contract, title, otherAccounts, 3, 7, 2);
+        await generateVotes(contract, title, otherAccounts, 3, 7, Option.NO);
 
         await contract.closeVoting(title);
 
         const topic = await contract.getTopic(title);
 
-        expect(topic.status).to.equal(3);
+        expect(topic.status).to.equal(Status.DENIED);
       });
 
       it("should set the new manager if the category is CHANGE_MANAGER", async () => {
@@ -1400,14 +1403,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          3,
+          Category.CHANGE_MANAGER,
           0,
           groupMember.address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 18, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 18, Option.YES);
 
         await contract.closeVoting(title);
 
@@ -1423,14 +1426,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          2,
+          Category.CHANGE_QUOTA,
           1,
           ethers.ZeroAddress,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 12, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 12, Option.YES);
 
         await contract.closeVoting(title);
 
@@ -1530,14 +1533,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           otherAccounts[0].address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 9, Option.YES);
 
         await contract.closeVoting(title);
 
@@ -1566,14 +1569,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           otherAccounts[0].address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 9, Option.YES);
 
         await contract.closeVoting(title);
 
@@ -1600,7 +1603,7 @@ describe("Consensus", () => {
         await contract.addTopic(
           "Test Topic",
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           otherAccounts[0].address,
         );
@@ -1620,14 +1623,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           otherAccounts[0].address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 9, Option.YES);
 
         await expect(contract.transfer(title, 10)).to.be.revertedWith(
           "Only APPROVED SPENT topics can be used for transfers",
@@ -1643,14 +1646,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          2,
+          Category.CHANGE_QUOTA,
           100,
           otherAccounts[0].address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 12, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 12, Option.YES);
 
         await contract.closeVoting(title);
 
@@ -1668,14 +1671,14 @@ describe("Consensus", () => {
         await contract.addTopic(
           title,
           "Test Description",
-          1,
+          Category.SPENT,
           100,
           otherAccounts[0].address,
         );
 
         await contract.openVoting(title);
 
-        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+        await generateVotes(contract, title, otherAccounts, 0, 9, Option.YES);
 
         await contract.closeVoting(title);
 
