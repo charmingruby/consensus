@@ -3,5 +3,6 @@ export enum Status {
     VOTING = 1,
     APPROVED = 2,
     DENIED = 3,
-    SPENT = 4
+    SPENT = 4,
+    DELETED = 5
 }

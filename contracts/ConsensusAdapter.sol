@@ -42,42 +42,55 @@ contract ConsensusAdapter {
     }
 
     function vote(string memory _title, Lib.Options _option) external upgraded {
-        _impl.vote(_title, _option);
+        return _impl.vote(_title, _option);
     }
 
     function closeVoting(string memory _title) external upgraded {
-        _impl.closeVoting(_title);
+        Lib.TopicUpdate memory topicUpdate = _impl.closeVoting(_title);
+
+        emit TopicChanged(
+            topicUpdate.topicId,
+            topicUpdate.title,
+            topicUpdate.status
+        );
+
+        if (topicUpdate.status == Lib.Status.APPROVED) {
+            if (topicUpdate.category == Lib.Category.CHANGE_MANAGER)
+                emit ManagerChanged(_impl.getManager());
+            else if (topicUpdate.category == Lib.Category.CHANGE_QUOTA)
+                emit QuotaChanged(_impl.getQuota());
+        }
     }
 
     function addLeader(address _leader, uint8 _groupId) external upgraded {
-        _impl.addLeader(_leader, _groupId);
+        return _impl.addLeader(_leader, _groupId);
     }
 
     function removeLeader(address _leader, uint8 _groupId) external upgraded {
-        _impl.removeLeader(_leader, _groupId);
+        return _impl.removeLeader(_leader, _groupId);
     }
 
     function setManager(address _newManager) external upgraded {
-        _impl.setManager(_newManager);
+        return _impl.setManager(_newManager);
     }
 
     function getManager() external view upgraded returns (address) {
         return _impl.getManager();
     }
 
-    function getMonthlyQuota() external view upgraded returns (uint256) {
-        return _impl.getMonthlyQuota();
+    function getQuota() external view upgraded returns (uint256) {
+        return _impl.getQuota();
     }
 
     function payQuota(uint8 _groupId) external payable upgraded {
-        _impl.payQuota{value: msg.value}(_groupId);
+        return _impl.payQuota{value: msg.value}(_groupId);
     }
 
     function setCounselor(
         address _counselor,
         bool _isEntering
     ) external upgraded {
-        _impl.setCounselor(_counselor, _isEntering);
+        return _impl.setCounselor(_counselor, _isEntering);
     }
 
     function addTopic(
@@ -87,11 +100,24 @@ contract ConsensusAdapter {
         uint _amount,
         address _responsible
     ) external upgraded {
-        _impl.addTopic(_title, _description, _category, _amount, _responsible);
+        return
+            _impl.addTopic(
+                _title,
+                _description,
+                _category,
+                _amount,
+                _responsible
+            );
     }
 
     function removeTopic(string memory title) external upgraded {
-        _impl.removeTopic(title);
+        Lib.TopicUpdate memory topicUpdate = _impl.removeTopic(title);
+
+        emit TopicChanged(
+            topicUpdate.topicId,
+            topicUpdate.title,
+            topicUpdate.status
+        );
     }
 
     function editTopic(
@@ -100,7 +126,18 @@ contract ConsensusAdapter {
         uint _amount,
         address _responsible
     ) external upgraded {
-        _impl.editTopic(_title, _description, _amount, _responsible);
+        Lib.TopicUpdate memory topicUpdate = _impl.editTopic(
+            _title,
+            _description,
+            _amount,
+            _responsible
+        );
+
+        emit TopicChanged(
+            topicUpdate.topicId,
+            topicUpdate.title,
+            topicUpdate.status
+        );
     }
 
     function getPayment(
@@ -119,7 +156,12 @@ contract ConsensusAdapter {
         string memory _topicTitle,
         uint256 _amount
     ) external upgraded {
-        _impl.transfer(_topicTitle, _amount);
+        Lib.TransferReceipt memory receipt = _impl.transfer(
+            _topicTitle,
+            _amount
+        );
+
+        emit Transfer(receipt.to, receipt.amount, receipt.topic);
     }
 
     modifier upgraded() {

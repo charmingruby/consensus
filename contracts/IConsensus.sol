@@ -7,11 +7,15 @@ pragma solidity ^0.8.28;
 import {ConsensusLib as Lib} from "./ConsensusLib.sol";
 
 interface IConsensus {
-    function openVoting(string memory _title) external;
+    function openVoting(
+        string memory _title
+    ) external returns (Lib.TopicUpdate memory);
 
     function vote(string memory _title, Lib.Options _option) external;
 
-    function closeVoting(string memory _title) external;
+    function closeVoting(
+        string memory _title
+    ) external returns (Lib.TopicUpdate memory);
 
     function addLeader(address _leader, uint8 _groupId) external;
 
@@ -19,11 +23,7 @@ interface IConsensus {
 
     function setManager(address _newManager) external;
 
-    function getManager() external view returns (address);
-
     function setCounselor(address _counselor, bool _isEntering) external;
-
-    function getMonthlyQuota() external view returns (uint256);
 
     function getPayment(uint8 _groupId) external view returns (uint256);
 
@@ -34,7 +34,7 @@ interface IConsensus {
         string memory _description,
         uint _amount,
         address _responsible
-    ) external;
+    ) external returns (Lib.TopicUpdate memory);
 
     function addTopic(
         string memory _title,
@@ -44,11 +44,20 @@ interface IConsensus {
         address _responsible
     ) external;
 
-    function removeTopic(string memory _title) external;
+    function removeTopic(
+        string memory _title
+    ) external returns (Lib.TopicUpdate memory);
 
     function numberOfVotes(
         string memory _title
     ) external view returns (uint256);
 
-    function transfer(string memory _topicTitle, uint256 _amount) external;
+    function transfer(
+        string memory _topicTitle,
+        uint256 _amount
+    ) external returns (Lib.TransferReceipt memory);
+
+    function getManager() external view returns (address);
+
+    function getQuota() external view returns (uint256);
 }

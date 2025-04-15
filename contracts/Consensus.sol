@@ -29,7 +29,7 @@ contract Consensus is IConsensus {
     function transfer(
         string memory _topicTitle,
         uint256 _amount
-    ) external restrictedToManager {
+    ) external restrictedToManager returns (Lib.TransferReceipt memory) {
         require(topicExists(_topicTitle), "Topic does not exists");
         require(address(this).balance >= _amount, "Insufficient funds");
 
@@ -47,6 +47,13 @@ contract Consensus is IConsensus {
 
         bytes32 topicId = keccak256(bytes(_topicTitle));
         _topics[topicId].status = Lib.Status.SPENT;
+
+        return
+            Lib.TransferReceipt({
+                to: topic.responsible,
+                amount: _amount,
+                topic: _topicTitle
+            });
     }
 
     function payQuota(uint8 _groupId) external payable {
@@ -72,7 +79,7 @@ contract Consensus is IConsensus {
         string memory _description,
         uint _amount,
         address _responsible
-    ) external restrictedToManager {
+    ) external restrictedToManager returns (Lib.TopicUpdate memory) {
         require(topicExists(_topicToEdit), "Topic does not exists");
 
         Lib.Topic memory topic = getTopic(_topicToEdit);
@@ -101,9 +108,19 @@ contract Consensus is IConsensus {
         if (descriptionChanged) _topics[topicId].description = _description;
         if (amountChanged) _topics[topicId].amount = _amount;
         if (responsibleChanged) _topics[topicId].responsible = _responsible;
+
+        return
+            Lib.TopicUpdate({
+                topicId: topicId,
+                title: _topicToEdit,
+                status: topic.status,
+                category: topic.category
+            });
     }
 
-    function openVoting(string memory _title) external restrictedToManager {
+    function openVoting(
+        string memory _title
+    ) external restrictedToManager returns (Lib.TopicUpdate memory) {
         require(topicExists(_title), "Topic does not exists");
 
         Lib.Topic memory topic = getTopic(_title);
@@ -117,6 +134,14 @@ contract Consensus is IConsensus {
 
         _topics[topicId].status = Lib.Status.VOTING;
         _topics[topicId].startDate = block.timestamp;
+
+        return
+            Lib.TopicUpdate({
+                topicId: topicId,
+                title: _title,
+                status: Lib.Status.VOTING,
+                category: topic.category
+            });
     }
 
     function vote(
@@ -152,7 +177,9 @@ contract Consensus is IConsensus {
         _votings[topicId].push(newVote);
     }
 
-    function closeVoting(string memory _title) external restrictedToManager {
+    function closeVoting(
+        string memory _title
+    ) external restrictedToManager returns (Lib.TopicUpdate memory) {
         Lib.Topic memory topic = getTopic(_title);
 
         require(topic.createdAt > 0, "Topic does not exists");
@@ -197,6 +224,14 @@ contract Consensus is IConsensus {
                 _monthlyQuota = topic.amount;
             else if (topic.category == Lib.Category.CHANGE_MANAGER)
                 _manager = topic.responsible;
+
+        return
+            Lib.TopicUpdate({
+                topicId: topicId,
+                title: _title,
+                status: newStatus,
+                category: topic.category
+            });
     }
 
     function addLeader(
@@ -286,7 +321,9 @@ contract Consensus is IConsensus {
         _topics[keccak256(bytes(newTopic.title))] = newTopic;
     }
 
-    function removeTopic(string memory _title) external restrictedToManager {
+    function removeTopic(
+        string memory _title
+    ) external restrictedToManager returns (Lib.TopicUpdate memory) {
         require(topicExists(_title), "Topic does not exists");
 
         Lib.Topic memory topic = getTopic(_title);
@@ -296,7 +333,17 @@ contract Consensus is IConsensus {
             "Only IDLE topics can be removed"
         );
 
-        delete _topics[keccak256(bytes(_title))];
+        bytes32 topicId = keccak256(bytes(_title));
+
+        delete _topics[topicId];
+
+        return
+            Lib.TopicUpdate({
+                topicId: topicId,
+                title: _title,
+                status: Lib.Status.DELETED,
+                category: topic.category
+            });
     }
 
     function numberOfVotes(string memory _title) public view returns (uint256) {
@@ -311,7 +358,7 @@ contract Consensus is IConsensus {
         return _topics[topicId];
     }
 
-    function getMonthlyQuota() public view returns (uint256) {
+    function getQuota() public view returns (uint256) {
         return _monthlyQuota;
     }
 

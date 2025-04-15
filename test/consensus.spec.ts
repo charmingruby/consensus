@@ -1437,18 +1437,18 @@ describe("Consensus", () => {
 
         await contract.closeVoting(title);
 
-        expect(await contract.getMonthlyQuota()).to.equal(1);
+        expect(await contract.getQuota()).to.equal(1);
       });
     });
   });
 
   describe("Payment Management", () => {
-    describe("getMonthlyQuota", () => {
+    describe("getQuota", () => {
       it("should return the monthly quota", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.getMonthlyQuota()).to.equal(
+        expect(await contract.getQuota()).to.equal(
           ethers.parseEther("0.01"),
         );
       });

@@ -55,14 +55,32 @@ describe("Consensus", () => {
 
                     const { contract } = await loadFixture(deployImplFixture);
 
-                    await expect(adapter.getMonthlyQuota())
+                    await expect(adapter.getQuota())
                         .to.be.revertedWith("Contract not upgraded");
                 });
             });
         })
 
         describe("Implementation", () => {
-            describe("getMonthlyQuota", () => {
+            describe("getManager", () => {
+                it("it should return the manager", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    const { contract } = await loadFixture(deployImplFixture);
+
+                    await adapter.upgrade(contract.getAddress());
+
+                    expect(await adapter.getManager()).to.equal(manager.address);
+                })
+
+                it("should not be able to call if not upgraded", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    await expect(adapter.getManager()).to.be.revertedWith("Contract not upgraded");
+                })
+            })
+
+            describe("getQuota", () => {
                 it("it should return the monthly quota", async () => {
                     const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
@@ -70,13 +88,13 @@ describe("Consensus", () => {
 
                     await adapter.upgrade(contract.getAddress());
 
-                    expect(await adapter.getMonthlyQuota()).to.equal(ethers.parseEther("0.01"));
+                    expect(await adapter.getQuota()).to.equal(ethers.parseEther("0.01"));
                 })
 
                 it("should not be able to call if not upgraded", async () => {
                     const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
 
-                    await expect(adapter.getMonthlyQuota()).to.be.revertedWith("Contract not upgraded");
+                    await expect(adapter.getQuota()).to.be.revertedWith("Contract not upgraded");
                 })
             })
 
@@ -116,7 +134,7 @@ describe("Consensus", () => {
 
                     const title = "Test Topic"
 
-                    await adapter.addTopic(title, "Test Description", 0, 0, ethers.ZeroAddress)
+                    await adapter.addTopic(title, "Test Description", Category.DECISION, 0, ethers.ZeroAddress)
 
                     await adapter.openVoting(title)
 
@@ -132,6 +150,60 @@ describe("Consensus", () => {
                     const topic = await contract.getTopic(title)
 
                     expect(topic.status).to.equal(Status.APPROVED)
+                })
+
+                it("should emit ManagerChanged event", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    const { contract } = await loadFixture(deployImplFixture);
+
+                    await adapter.upgrade(contract.getAddress());
+
+                    const title = "Test Topic"
+
+                    const newManager = baseAccounts[0]
+
+                    await adapter.addLeader(newManager.address, 1)
+                    const groupMemberContract = contract.connect(newManager)
+                    await groupMemberContract.payQuota(1, { value: ethers.parseEther("0.01") })
+
+                    await adapter.addTopic(title, "Test Description", Category.CHANGE_MANAGER, 0, newManager.address)
+
+                    await adapter.openVoting(title)
+
+                    for (let i = 1; i < 19; i++) {
+                        await adapter.addLeader(baseAccounts[i].address, 1)
+                        const groupMemberContract = contract.connect(baseAccounts[i])
+                        await groupMemberContract.payQuota(i + 1, { value: ethers.parseEther("0.01") })
+                        await groupMemberContract.vote(title, Option.YES)
+                    }
+
+                    await expect(adapter.closeVoting(title))
+                        .to.emit(adapter, "ManagerChanged").withArgs(newManager.address)
+                })
+
+                it("should emit QuotaChanged event", async () => {
+                    const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                    const { contract } = await loadFixture(deployImplFixture);
+
+                    await adapter.upgrade(contract.getAddress());
+
+                    const title = "Test Topic"
+
+                    await adapter.addTopic(title, "Test Description", Category.CHANGE_QUOTA, 100, ethers.ZeroAddress)
+
+                    await adapter.openVoting(title)
+
+                    for (let i = 0; i < 12; i++) {
+                        await adapter.addLeader(baseAccounts[i].address, 1)
+                        const groupMemberContract = contract.connect(baseAccounts[i])
+                        await groupMemberContract.payQuota(i + 1, { value: ethers.parseEther("0.01") })
+                        await groupMemberContract.vote(title, Option.YES)
+                    }
+
+                    await expect(adapter.closeVoting(title))
+                        .to.emit(adapter, "QuotaChanged").withArgs(100)
                 })
 
                 it("should not be able to call if not upgraded", async () => {
@@ -460,7 +532,7 @@ describe("Consensus", () => {
                     const contractBalanceBefore = await ethers.provider.getBalance(contract.getAddress())
                     const responsibleBalanceBefore = await ethers.provider.getBalance(baseAccounts[0].address)
 
-                    await adapter.transfer(title, 10)
+                    expect(await adapter.transfer(title, 10)).to.emit(adapter, "Transfer").withArgs(baseAccounts[0].address, 10, title)
 
                     const contractBalanceAfter = await ethers.provider.getBalance(contract.getAddress())
                     const responsibleBalanceAfter = await ethers.provider.getBalance(baseAccounts[0].address)

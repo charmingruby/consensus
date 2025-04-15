@@ -10,7 +10,8 @@ library ConsensusLib {
         VOTING,
         APPROVED,
         DENIED,
-        SPENT
+        SPENT,
+        DELETED
     }
 
     enum Options {
@@ -44,5 +45,18 @@ library ConsensusLib {
         uint8 group;
         Options option;
         uint256 createdAt;
+    }
+
+    struct TopicUpdate {
+        bytes32 topicId;
+        string title;
+        Status status;
+        Category category;
+    }
+
+    struct TransferReceipt {
+        address to;
+        uint256 amount;
+        string topic;
     }
 }
