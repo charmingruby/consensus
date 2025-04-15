@@ -49,4 +49,6 @@ interface IConsensus {
     function numberOfVotes(
         string memory _title
     ) external view returns (uint256);
+
+    function transfer(string memory _topicTitle, uint256 _amount) external;
 }

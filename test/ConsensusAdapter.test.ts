@@ -397,6 +397,55 @@ describe("Consensus", () => {
 
                 await expect(adapter.numberOfVotes("Test Topic")).to.be.revertedWith("Contract not upgraded");
             })
+
+            it("transfer", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                const { contract } = await loadFixture(deployImplFixture);
+
+                await adapter.upgrade(contract.getAddress());
+
+                const title = "Test Topic"
+
+
+                await adapter.addLeader(baseAccounts[0].address, 1)
+                const groupMemberContract = adapter.connect(baseAccounts[0])
+                await groupMemberContract.payQuota(1, { value: ethers.parseEther("0.01") })
+
+                await adapter.addTopic(title, "Test Description", 1, 100, baseAccounts[0].address)
+
+                await adapter.openVoting(title)
+
+                for (let i = 1; i < 10; i++) {
+                    await adapter.addLeader(baseAccounts[i].address, 1)
+                    const groupMemberContract = adapter.connect(baseAccounts[i])
+                    await groupMemberContract.payQuota(i + 1, { value: ethers.parseEther("0.01") })
+                    await groupMemberContract.vote(title, 1)
+                }
+
+                await adapter.closeVoting(title)
+
+                const contractBalanceBefore = await ethers.provider.getBalance(contract.getAddress())
+                const responsibleBalanceBefore = await ethers.provider.getBalance(baseAccounts[0].address)
+
+                await adapter.transfer(title, 10)
+
+                const contractBalanceAfter = await ethers.provider.getBalance(contract.getAddress())
+                const responsibleBalanceAfter = await ethers.provider.getBalance(baseAccounts[0].address)
+
+                expect(contractBalanceAfter).to.be.equal(contractBalanceBefore - 10n)
+                expect(responsibleBalanceAfter).to.be.equal(responsibleBalanceBefore + 10n)
+
+                const topic = await contract.getTopic(title)
+
+                expect(topic.status).to.equal(4)
+            })
+
+            it("transfer not upgraded", async () => {
+                const { adapter, manager, baseAccounts } = await loadFixture(deployAdapterFixture);
+
+                await expect(adapter.transfer("Test Topic", 10)).to.be.revertedWith("Contract not upgraded");
+            })
         })
     });
 });

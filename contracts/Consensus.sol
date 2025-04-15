@@ -26,6 +26,29 @@ contract Consensus is IConsensus {
         }
     }
 
+    function transfer(
+        string memory _topicTitle,
+        uint256 _amount
+    ) external restrictedToManager {
+        require(topicExists(_topicTitle), "Topic does not exists");
+        require(address(this).balance >= _amount, "Insufficient funds");
+
+        Lib.Topic memory topic = getTopic(_topicTitle);
+
+        require(
+            topic.status == Lib.Status.APPROVED &&
+                topic.category == Lib.Category.SPENT,
+            "Only APPROVED SPENT topics can be used for transfers"
+        );
+
+        require(topic.amount >= _amount, "Insufficient funds");
+
+        payable(topic.responsible).transfer(_amount);
+
+        bytes32 topicId = keccak256(bytes(_topicTitle));
+        _topics[topicId].status = Lib.Status.SPENT;
+    }
+
     function payQuota(uint8 _groupId) external payable {
         require(groupExists(_groupId), "Group does not exists");
         require(msg.value == _monthlyQuota, "Invalid amount");

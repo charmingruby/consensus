@@ -9,7 +9,8 @@ library ConsensusLib {
         IDLE,
         VOTING,
         APPROVED,
-        DENIED
+        DENIED,
+        SPENT
     }
 
     enum Options {

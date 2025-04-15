@@ -1519,5 +1519,141 @@ describe("Consensus", () => {
         );
       });
     });
+
+    describe("transfer", () => {
+      it("should transfer the funds", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        const title = "Test Topic";
+
+        await contract.addTopic(
+          title,
+          "Test Description",
+          1,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await contract.openVoting(title);
+
+        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+
+        await contract.closeVoting(title);
+
+        const contractBalanceBefore = await ethers.provider.getBalance(contract.getAddress())
+        const responsibleBalanceBefore = await ethers.provider.getBalance(otherAccounts[0].address)
+
+        await contract.transfer(title, 10)
+
+        const contractBalanceAfter = await ethers.provider.getBalance(contract.getAddress())
+        const responsibleBalanceAfter = await ethers.provider.getBalance(otherAccounts[0].address)
+
+        expect(contractBalanceAfter).to.be.equal(contractBalanceBefore - 10n)
+        expect(responsibleBalanceAfter).to.be.equal(responsibleBalanceBefore + 10n)
+
+        const topic = await contract.getTopic(title)
+
+        expect(topic.status).to.equal(4)
+      })
+
+      it("should not transfer the funds if the topic does not exists", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        await expect(contract.transfer("Non Existent Topic", 10)).to.be.revertedWith(
+          "Topic does not exists",
+        );
+      })
+
+      it("should be not able to transfer the funds if the contract balance is less than the amount to transfer", async () => {
+        const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
+
+        await contract.addTopic(
+          "Test Topic",
+          "Test Description",
+          1,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await expect(contract.transfer("Test Topic", 1000)).to.be.revertedWith(
+          "Insufficient funds",
+        );
+      })
+
+
+      it("should not transfer the funds if the topic is not approved", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        const title = "Test Topic";
+
+        await contract.addTopic(
+          title,
+          "Test Description",
+          1,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await contract.openVoting(title);
+
+        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+
+        await expect(contract.transfer(title, 10)).to.be.revertedWith(
+          "Only APPROVED SPENT topics can be used for transfers",
+        );
+      })
+
+      it("should not transfer the funds if the topic is not SPENT", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        const title = "Test Topic";
+
+        await contract.addTopic(
+          title,
+          "Test Description",
+          2,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await contract.openVoting(title);
+
+        await generateVotes(contract, title, otherAccounts, 0, 12, 1);
+
+        await contract.closeVoting(title);
+
+        await expect(contract.transfer(title, 10)).to.be.revertedWith(
+          "Only APPROVED SPENT topics can be used for transfers",
+        );
+      })
+
+      it("should not transfer the funds if the topic amount is less than the amount to transfer", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        const title = "Test Topic";
+
+        await contract.addTopic(
+          title,
+          "Test Description",
+          1,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await contract.openVoting(title);
+
+        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+
+        await contract.closeVoting(title);
+
+        await expect(contract.transfer(title, 101)).to.be.revertedWith(
+          "Insufficient funds",
+        );
+      })
+    })
   })
 });

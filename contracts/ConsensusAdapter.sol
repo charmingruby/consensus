@@ -103,6 +103,13 @@ contract ConsensusAdapter {
         return _impl.numberOfVotes(title);
     }
 
+    function transfer(
+        string memory _topicTitle,
+        uint256 _amount
+    ) external upgraded {
+        _impl.transfer(_topicTitle, _amount);
+    }
+
     modifier upgraded() {
         require(address(_impl) != address(0), "Contract not upgraded");
         _;
