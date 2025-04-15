@@ -10,6 +10,18 @@ contract ConsensusAdapter {
     IConsensus private _impl;
     address private immutable _owner;
 
+    event QuotaChanged(uint256 amount);
+
+    event ManagerChanged(address newManager);
+
+    event TopicChanged(
+        bytes32 indexed topicId,
+        string title,
+        Lib.Status indexed status
+    );
+
+    event Transfer(address to, uint indexed amout, string topic);
+
     constructor() {
         _owner = msg.sender;
     }
@@ -25,28 +37,28 @@ contract ConsensusAdapter {
         return address(_impl);
     }
 
-    function openVoting(string memory title) external upgraded {
-        _impl.openVoting(title);
+    function openVoting(string memory _title) external upgraded {
+        _impl.openVoting(_title);
     }
 
-    function vote(string memory title, Lib.Options _option) external upgraded {
-        _impl.vote(title, _option);
+    function vote(string memory _title, Lib.Options _option) external upgraded {
+        _impl.vote(_title, _option);
     }
 
-    function closeVoting(string memory title) external upgraded {
-        _impl.closeVoting(title);
+    function closeVoting(string memory _title) external upgraded {
+        _impl.closeVoting(_title);
     }
 
-    function addLeader(address leader, uint8 _groupId) external upgraded {
-        _impl.addLeader(leader, _groupId);
+    function addLeader(address _leader, uint8 _groupId) external upgraded {
+        _impl.addLeader(_leader, _groupId);
     }
 
-    function removeLeader(address leader, uint8 _groupId) external upgraded {
-        _impl.removeLeader(leader, _groupId);
+    function removeLeader(address _leader, uint8 _groupId) external upgraded {
+        _impl.removeLeader(_leader, _groupId);
     }
 
-    function setManager(address newManager) external upgraded {
-        _impl.setManager(newManager);
+    function setManager(address _newManager) external upgraded {
+        _impl.setManager(_newManager);
     }
 
     function getManager() external view upgraded returns (address) {
@@ -62,20 +74,20 @@ contract ConsensusAdapter {
     }
 
     function setCounselor(
-        address counselor,
+        address _counselor,
         bool _isEntering
     ) external upgraded {
-        _impl.setCounselor(counselor, _isEntering);
+        _impl.setCounselor(_counselor, _isEntering);
     }
 
     function addTopic(
-        string memory title,
+        string memory _title,
         string memory _description,
         Lib.Category _category,
-        uint amount,
-        address responsible
+        uint _amount,
+        address _responsible
     ) external upgraded {
-        _impl.addTopic(title, _description, _category, amount, responsible);
+        _impl.addTopic(_title, _description, _category, _amount, _responsible);
     }
 
     function removeTopic(string memory title) external upgraded {
@@ -83,12 +95,12 @@ contract ConsensusAdapter {
     }
 
     function editTopic(
-        string memory title,
+        string memory _title,
         string memory _description,
-        uint amount,
-        address responsible
+        uint _amount,
+        address _responsible
     ) external upgraded {
-        _impl.editTopic(title, _description, amount, responsible);
+        _impl.editTopic(_title, _description, _amount, _responsible);
     }
 
     function getPayment(
@@ -98,9 +110,9 @@ contract ConsensusAdapter {
     }
 
     function numberOfVotes(
-        string memory title
+        string memory _title
     ) external view upgraded returns (uint256) {
-        return _impl.numberOfVotes(title);
+        return _impl.numberOfVotes(_title);
     }
 
     function transfer(
