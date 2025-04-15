@@ -1557,6 +1557,35 @@ describe("Consensus", () => {
         expect(topic.status).to.equal(4)
       })
 
+      it("should be not able to transfer the funds if is not the manager", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        const title = "Test Topic";
+
+        await contract.addTopic(
+          title,
+          "Test Description",
+          1,
+          100,
+          otherAccounts[0].address,
+        );
+
+        await contract.openVoting(title);
+
+        await generateVotes(contract, title, otherAccounts, 0, 9, 1);
+
+        await contract.closeVoting(title);
+
+        const groupMemberContract = contract.connect(groupMember)
+
+
+        await expect(groupMemberContract.transfer(title, 10)).to.be.revertedWith(
+          "Only the manager can call this function",
+        );
+
+      })
+
       it("should not transfer the funds if the topic does not exists", async () => {
         const { contract, manager, groupMember, otherAccounts } = await loadFixture(deployFixture);
 
