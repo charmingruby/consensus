@@ -7,7 +7,8 @@
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
     "coverage": "npx hardhat coverage",
-    "deploy:dev": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network local"
+    "deploy:dev": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network local",
+    "deploy:sepolia": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network sepolia"
   },
   "repository": {
     "type": "git",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.5.0",
     "hardhat": "^2.22.19",
     "solidity-coverage": "^0.8.14"
   }
