@@ -4,7 +4,14 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 const ConsensusModule = buildModule("ConsensusModule", (m) => {
-  const consensus = m.contract("Consensus");
+  const validator = m.library("Validator");
+
+  const consensus = m.contract("Consensus", [], {
+    libraries: {
+      "Validator": validator,
+    },
+    after: [validator],
+  });
 
   const adapter = m.contract("ConsensusAdapter", [], {
     after: [consensus],

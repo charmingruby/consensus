@@ -15,7 +15,14 @@ describe("Consensus", () => {
     const [manager, groupMember, ...otherAccounts] =
       await hre.ethers.getSigners();
 
-    const Consensus = await hre.ethers.getContractFactory("Consensus");
+    const Validator = await hre.ethers.getContractFactory("Validator");
+    const validator = await Validator.deploy();
+
+    const Consensus = await hre.ethers.getContractFactory("Consensus", {
+      libraries: {
+        Validator: await validator.getAddress(),
+      },
+    });
     const contract = await Consensus.deploy();
 
     return { contract, manager, groupMember, otherAccounts };
@@ -28,7 +35,10 @@ describe("Consensus", () => {
   ) {
     for (let i = 0; i < count; i++) {
       await contract.addLeader(accounts[i].address, i + 1);
-      await contract.payQuota(i + 1, { value: ethers.parseEther("0.01") });
+      const leader = await contract.getLeader(accounts[i].address);
+      if (leader.nextPayment === 0n) {
+        await contract.payQuota(i + 1, { value: ethers.parseEther("0.01") });
+      }
     }
   }
 
@@ -40,10 +50,11 @@ describe("Consensus", () => {
     numberOfVotes: number,
     option: number
   ) {
-    for (let i = startIndex; i < numberOfVotes; i++) {
-      await contract.addLeader(accounts[i].address, i + 1);
+    for (let i = startIndex; i < startIndex + numberOfVotes; i++) {
+      const groupId = i + 1;
+      await contract.addLeader(accounts[i].address, groupId);
       const groupMemberContract = contract.connect(accounts[i]);
-      await groupMemberContract.payQuota(i + 1, { value: ethers.parseEther("0.01") });
+      await groupMemberContract.payQuota(groupId, { value: ethers.parseEther("0.01") });
       await groupMemberContract.vote(title, option);
     }
   }
@@ -56,7 +67,8 @@ describe("Consensus", () => {
 
         await addLeaders(contract, 1, [groupMember]);
 
-        expect(await contract.isLeader(groupMember.address)).to.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.group).to.be.greaterThan(0);
       });
 
       it("should be not able to add a leader to a group if the address is null", async () => {
@@ -96,11 +108,31 @@ describe("Consensus", () => {
 
         await addLeaders(contract, 1, [groupMember]);
 
-        expect(await contract.isLeader(groupMember.address)).to.be.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.group).to.be.greaterThan(0);
 
         await contract.removeLeader(groupMember.address, 1);
 
-        expect(await contract.isLeader(groupMember.address)).to.be.equal(false);
+        const removedLeader = await contract.getLeader(groupMember.address);
+        expect(removedLeader.group).to.equal(0);
+      });
+
+      it("should remove a leader from the middle of the list", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        await addLeaders(contract, 3, [groupMember, otherAccounts[0], otherAccounts[1]]);
+
+        await contract.removeLeader(otherAccounts[0].address, 2);
+
+        const firstLeader = await contract.getLeader(groupMember.address);
+        expect(firstLeader.group).to.be.greaterThan(0);
+
+        const middleLeader = await contract.getLeader(otherAccounts[0].address);
+        expect(middleLeader.group).to.equal(0);
+
+        const lastLeader = await contract.getLeader(otherAccounts[1].address);
+        expect(lastLeader.group).to.be.greaterThan(0);
       });
 
       it("should be not able to remove a leader from a group that does not exists", async () => {
@@ -118,7 +150,8 @@ describe("Consensus", () => {
 
         await addLeaders(contract, 1, [groupMember]);
 
-        expect(await contract.isLeader(groupMember.address)).to.be.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.group).to.be.greaterThan(0);
 
         const groupMemberContract = contract.connect(groupMember);
 
@@ -129,13 +162,18 @@ describe("Consensus", () => {
     });
 
     describe("setManager", () => {
-      it("should set a new manager", async () => {
+      it("should set a new manager and update leader status", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
+
+        await addLeaders(contract, 1, [groupMember]);
 
         await contract.setManager(groupMember.address);
 
         expect(await contract.getManager()).to.equal(groupMember.address);
+
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.isManager).to.equal(true);
       });
 
       it("should be not able to set a new manager if the address is null", async () => {
@@ -186,7 +224,8 @@ describe("Consensus", () => {
 
         await contract.setCounselor(groupMember.address, true);
 
-        expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.isCounselor).to.equal(true);
       });
 
       it("should be not able to set a counselor if the address is null", async () => {
@@ -233,23 +272,24 @@ describe("Consensus", () => {
         ).to.be.revertedWith("Counselor is not a leader");
       });
 
-      it("should remove a counselor from the contract", async () => {
-        const { contract, manager, groupMember } =
+      it("should remove a counselor from the contract and update the array correctly", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
           await loadFixture(deployFixture);
 
-        await addLeaders(contract, 1, [groupMember]);
-
+        await addLeaders(contract, 3, [groupMember, otherAccounts[0], otherAccounts[1]]);
         await contract.setCounselor(groupMember.address, true);
+        await contract.setCounselor(otherAccounts[0].address, true);
+        await contract.setCounselor(otherAccounts[1].address, true);
 
-        expect(await contract.isCounselor(groupMember.address)).to.be.equal(
-          true,
-        );
+        await contract.setCounselor(otherAccounts[0].address, false);
 
-        await contract.setCounselor(groupMember.address, false);
+        const leader1 = await contract.getLeader(groupMember.address);
+        const leader2 = await contract.getLeader(otherAccounts[0].address);
+        const leader3 = await contract.getLeader(otherAccounts[1].address);
 
-        expect(await contract.isCounselor(groupMember.address)).to.be.equal(
-          false,
-        );
+        expect(leader1.isCounselor).to.equal(true);
+        expect(leader2.isCounselor).to.equal(false);
+        expect(leader3.isCounselor).to.equal(true);
       });
 
       it("should be not able to remove a counselor if the address is not a counselor", async () => {
@@ -269,9 +309,8 @@ describe("Consensus", () => {
 
         await contract.setCounselor(groupMember.address, true);
 
-        expect(await contract.isCounselor(groupMember.address)).to.be.equal(
-          true,
-        );
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.isCounselor).to.equal(true);
 
         const groupMemberContract = contract.connect(groupMember);
 
@@ -290,14 +329,16 @@ describe("Consensus", () => {
 
         await contract.setCounselor(groupMember.address, true);
 
-        expect(await contract.isCounselor(groupMember.address)).to.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.isCounselor).to.equal(true);
       });
 
       it("should return false if the address is not a counselor", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.isCounselor(groupMember.address)).to.equal(false);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.isCounselor).to.equal(false);
       });
     });
 
@@ -308,14 +349,16 @@ describe("Consensus", () => {
 
         await addLeaders(contract, 1, [groupMember]);
 
-        expect(await contract.isLeader(groupMember.address)).to.equal(true);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.group).to.be.greaterThan(0);
       });
 
       it("should return false if the address is not a leader", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.isLeader(groupMember.address)).to.be.equal(false);
+        const leader = await contract.getLeader(groupMember.address);
+        expect(leader.group).to.equal(0);
       });
     });
 
@@ -324,14 +367,16 @@ describe("Consensus", () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.groupExists(1)).to.equal(true);
+        await addLeaders(contract, 1, [groupMember]);
       });
 
       it("should return false if the group does not exist", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.groupExists(MAX_GROUPS + 1)).to.equal(false);
+        await expect(
+          contract.addLeader(groupMember.address, MAX_GROUPS + 1),
+        ).to.be.revertedWith("Group does not exists");
       });
     });
   });
@@ -352,7 +397,7 @@ describe("Consensus", () => {
           ethers.ZeroAddress,
         );
 
-        const topic = await contract.getTopic("Test Topic");
+        const topic = await contract.getTopic(title);
 
         expect(topic.title).to.equal(title);
       });
@@ -693,7 +738,8 @@ describe("Consensus", () => {
 
         await contract.removeTopic(title);
 
-        expect(await contract.topicExists(title)).to.equal(false);
+        const topic = await contract.getTopic(title);
+        expect(topic.title).to.equal("");
       });
 
       it("should be not able to remove a topic if the topic does not exist", async () => {
@@ -724,6 +770,80 @@ describe("Consensus", () => {
         await expect(groupMemberContract.removeTopic(title)).to.be.revertedWith(
           "Only the manager can call this function",
         );
+      });
+
+      it("should remove a topic that is not the last in the list", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1);
+        await contract.connect(groupMember).payQuota(1, { value: ethers.parseEther("0.01") });
+
+        const groupMemberContract = contract.connect(groupMember);
+
+        await groupMemberContract.addTopic(
+          "First Topic",
+          "Description of first topic",
+          Category.DECISION,
+          0,
+          groupMember.address
+        );
+
+        await groupMemberContract.addTopic(
+          "Second Topic",
+          "Description of second topic",
+          Category.DECISION,
+          0,
+          groupMember.address
+        );
+
+        await groupMemberContract.addTopic(
+          "Third Topic",
+          "Description of third topic",
+          Category.DECISION,
+          0,
+          groupMember.address
+        );
+
+        await contract.removeTopic("Second Topic");
+
+        const firstTopic = await contract.getTopic("First Topic");
+        expect(firstTopic.title).to.equal("First Topic");
+
+        const lastTopic = await contract.getTopic("Third Topic");
+        expect(lastTopic.title).to.equal("Third Topic");
+
+        const middleTopic = await contract.getTopic("Second Topic");
+        expect(middleTopic.title).to.equal("");
+      });
+
+      it("should approve manager change when current manager is not a leader", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1);
+        await contract.connect(groupMember).payQuota(1, { value: ethers.parseEther("0.01") });
+
+        const groupMemberContract = contract.connect(groupMember);
+        await groupMemberContract.addTopic(
+          "Change Manager",
+          "Change manager to new address",
+          Category.CHANGE_MANAGER,
+          0,
+          otherAccounts[0].address
+        );
+
+        await contract.openVoting("Change Manager");
+
+        for (let i = 0; i < 18; i++) {
+          await contract.addLeader(otherAccounts[i].address, i + 2);
+          await contract.connect(otherAccounts[i]).payQuota(i + 2, { value: ethers.parseEther("0.01") });
+          await contract.connect(otherAccounts[i]).vote("Change Manager", Option.YES);
+        }
+
+        await contract.closeVoting("Change Manager");
+
+        expect(await contract.getManager()).to.equal(otherAccounts[0].address);
       });
     });
 
@@ -756,6 +876,41 @@ describe("Consensus", () => {
         expect(topic.title).to.equal("");
         expect(topic.createdAt).to.equal(0);
       });
+
+      it("should handle topic lookup for first element correctly", async () => {
+        const { contract, manager, groupMember } =
+          await loadFixture(deployFixture);
+
+        const title = "First Topic";
+        await contract.addTopic(
+          title,
+          "Test Description",
+          Category.SPENT,
+          100,
+          ethers.ZeroAddress,
+        );
+
+        const topic = await contract.getTopic(title);
+        expect(topic.title).to.equal(title);
+        expect(topic.createdAt).to.be.greaterThan(0);
+      });
+
+      it("should handle topic lookup for non-first element correctly", async () => {
+        const { contract, manager, groupMember } =
+          await loadFixture(deployFixture);
+
+        await contract.addTopic("First Topic", "Description", 0, Category.DECISION, ethers.ZeroAddress);
+
+        await contract.addTopic("Second Topic", "Description", 0, Category.DECISION, ethers.ZeroAddress);
+
+        const topicPage = await contract.getTopics(1, 10);
+        const secondTopic = topicPage.topics[1];
+
+        const topic = await contract.getTopic("Second Topic");
+
+        expect(topic.title).to.equal("Second Topic");
+        expect(topic.createdAt).to.be.gt(0);
+      });
     });
 
     describe("topicExists", () => {
@@ -773,16 +928,16 @@ describe("Consensus", () => {
           ethers.ZeroAddress,
         );
 
-        expect(await contract.topicExists(title)).to.equal(true);
+        const topic = await contract.getTopic(title);
+        expect(topic.title).to.equal(title);
       });
 
       it("should return false if the topic does not exist", async () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
-        expect(await contract.topicExists("Non Existent Topic")).to.equal(
-          false,
-        );
+        const topic = await contract.getTopic("Non Existent Topic");
+        expect(topic.title).to.equal("");
       });
     });
   });
@@ -1417,6 +1572,37 @@ describe("Consensus", () => {
         expect(await contract.getManager()).to.equal(groupMember.address);
       });
 
+      it("should set the new manager and update leader status when current manager is a leader", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        await contract.addLeader(manager.address, 1);
+        await contract.connect(manager).payQuota(1, { value: ethers.parseEther("0.01") });
+
+        await contract.addTopic(
+          "Change Manager",
+          "Change manager to new address",
+          Category.CHANGE_MANAGER,
+          0,
+          groupMember.address
+        );
+
+        await contract.openVoting("Change Manager");
+
+        for (let i = 0; i < 18; i++) {
+          await contract.addLeader(otherAccounts[i].address, i + 2);
+          await contract.connect(otherAccounts[i]).payQuota(i + 2, { value: ethers.parseEther("0.01") });
+          await contract.connect(otherAccounts[i]).vote("Change Manager", Option.YES);
+        }
+
+        await contract.closeVoting("Change Manager");
+
+        expect(await contract.getManager()).to.equal(groupMember.address);
+
+        const oldManagerLeader = await contract.getLeader(manager.address);
+        expect(oldManagerLeader.isManager).to.equal(false);
+      });
+
       it("should set the new quota if the category is CHANGE_QUOTA", async () => {
         const { contract, manager, groupMember, otherAccounts } =
           await loadFixture(deployFixture);
@@ -1439,6 +1625,35 @@ describe("Consensus", () => {
 
         expect(await contract.getQuota()).to.equal(1);
       });
+
+      it("should approve manager change when current manager is not a leader", async () => {
+        const { contract, manager, groupMember, otherAccounts } =
+          await loadFixture(deployFixture);
+
+        await contract.addLeader(groupMember.address, 1);
+        await contract.connect(groupMember).payQuota(1, { value: ethers.parseEther("0.01") });
+
+        const groupMemberContract = contract.connect(groupMember);
+        await groupMemberContract.addTopic(
+          "Change Manager",
+          "Change manager to new address",
+          Category.CHANGE_MANAGER,
+          0,
+          otherAccounts[0].address
+        );
+
+        await contract.openVoting("Change Manager");
+
+        for (let i = 0; i < 18; i++) {
+          await contract.addLeader(otherAccounts[i].address, i + 2);
+          await contract.connect(otherAccounts[i]).payQuota(i + 2, { value: ethers.parseEther("0.01") });
+          await contract.connect(otherAccounts[i]).vote("Change Manager", Option.YES);
+        }
+
+        await contract.closeVoting("Change Manager");
+
+        expect(await contract.getManager()).to.equal(otherAccounts[0].address);
+      });
     });
   });
 
@@ -1459,9 +1674,11 @@ describe("Consensus", () => {
         const { contract, manager, groupMember } =
           await loadFixture(deployFixture);
 
+        await contract.addLeader(manager.address, 1);
         await contract.payQuota(1, { value: ethers.parseEther("0.01") });
 
-        expect(await contract.getPayment(1)).to.greaterThan(0);
+        const leader = await contract.getLeader(manager.address);
+        expect(leader.nextPayment).to.be.greaterThan(0);
       });
 
       it("should not pay the quota if the group does not exists", async () => {
@@ -1490,35 +1707,6 @@ describe("Consensus", () => {
 
         await expect(contract.payQuota(1, { value: ethers.parseEther("0.01") })).to.be.revertedWith(
           "Payment already made",
-        );
-      });
-    });
-
-    describe("getPayment", () => {
-      it("should return the payment", async () => {
-        const { contract, manager, groupMember } =
-          await loadFixture(deployFixture);
-
-        await contract.payQuota(1, { value: ethers.parseEther("0.01") });
-
-        expect(await contract.getPayment(1)).to.greaterThan(0);
-      });
-
-      it("should not return the payment if the group does not exists", async () => {
-        const { contract, manager, groupMember } =
-          await loadFixture(deployFixture);
-
-        await expect(contract.getPayment(MAX_GROUPS + 1)).to.be.revertedWith(
-          "Group does not exists",
-        );
-      });
-
-      it("should not return the payment if the payment was not made", async () => {
-        const { contract, manager, groupMember } =
-          await loadFixture(deployFixture);
-
-        await expect(contract.getPayment(1)).to.be.revertedWith(
-          "Payment not made",
         );
       });
     });
@@ -1688,4 +1876,126 @@ describe("Consensus", () => {
       })
     })
   })
+
+  describe("getTopics", () => {
+    it("should return topics with pagination", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      await contract.addTopic("Topic 1", "Description 1", 0, Category.DECISION, ethers.ZeroAddress);
+      await contract.addTopic("Topic 2", "Description 2", 0, Category.DECISION, ethers.ZeroAddress);
+      await contract.addTopic("Topic 3", "Description 3", 0, Category.DECISION, ethers.ZeroAddress);
+
+      const page1 = await contract.getTopics(1, 2);
+      expect(page1.topics.length).to.equal(2);
+      expect(page1.total).to.equal(3);
+      expect(page1.topics[0].title).to.equal("Topic 1");
+      expect(page1.topics[1].title).to.equal("Topic 2");
+
+      const page2 = await contract.getTopics(2, 2);
+      expect(page2.topics.length).to.equal(1);
+      expect(page2.topics[0].title).to.equal("Topic 3");
+    });
+
+    it("should return empty array when page is beyond total topics", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      await contract.addTopic("Topic 1", "Description 1", 0, Category.DECISION, ethers.ZeroAddress);
+
+      const page2 = await contract.getTopics(2, 1);
+      expect(page2.topics.length).to.equal(0);
+      expect(page2.total).to.equal(1);
+    });
+
+    it("should return partial page when it's the last page", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      await contract.addTopic("Topic 1", "Description 1", 0, Category.DECISION, ethers.ZeroAddress);
+      await contract.addTopic("Topic 2", "Description 2", 0, Category.DECISION, ethers.ZeroAddress);
+
+      const page = await contract.getTopics(1, 3);
+      expect(page.topics.length).to.equal(2);
+      expect(page.total).to.equal(2);
+      expect(page.topics[0].title).to.equal("Topic 1");
+      expect(page.topics[1].title).to.equal("Topic 2");
+    });
+
+    it("should revert if page is 0", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      await expect(contract.getTopics(0, 10)).to.be.revertedWith(
+        "Page must be greater than 0"
+      );
+    });
+
+    it("should revert if pageSize is 0", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      await expect(contract.getTopics(1, 0)).to.be.revertedWith(
+        "Page size must be greater than 0"
+      );
+    });
+  });
+
+  describe("getVotes", () => {
+    it("should return votes for a topic", async () => {
+      const { contract, manager, groupMember, otherAccounts } =
+        await loadFixture(deployFixture);
+
+      const title = "Test Topic";
+
+      await contract.addTopic(title, "Description", 0, Category.DECISION, ethers.ZeroAddress);
+      await contract.openVoting(title);
+
+      await addLeaders(contract, 2, [groupMember, otherAccounts[0]]);
+      await contract.connect(groupMember).vote(title, Option.YES);
+      await contract.connect(otherAccounts[0]).vote(title, Option.NO);
+
+      const votes = await contract.getVotes(title);
+      expect(votes.length).to.equal(2);
+      expect(votes[0].option).to.equal(Option.YES);
+      expect(votes[1].option).to.equal(Option.NO);
+    });
+
+    it("should return empty array for topic without votes", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      const title = "Test Topic";
+      await contract.addTopic(title, "Description", 0, Category.DECISION, ethers.ZeroAddress);
+
+      const votes = await contract.getVotes(title);
+      expect(votes.length).to.equal(0);
+    });
+  });
+
+  describe("getCounselors", () => {
+    it("should return all counselors", async () => {
+      const { contract, manager, groupMember, otherAccounts } =
+        await loadFixture(deployFixture);
+
+      await addLeaders(contract, 3, [groupMember, otherAccounts[0], otherAccounts[1]]);
+
+      await contract.setCounselor(groupMember.address, true);
+      await contract.setCounselor(otherAccounts[0].address, true);
+
+      const counselors = await contract.getCounselors();
+      expect(counselors.length).to.equal(2);
+      expect(counselors).to.include(groupMember.address);
+      expect(counselors).to.include(otherAccounts[0].address);
+      expect(counselors).to.not.include(otherAccounts[1].address);
+    });
+
+    it("should return empty array when there are no counselors", async () => {
+      const { contract, manager, groupMember } =
+        await loadFixture(deployFixture);
+
+      const counselors = await contract.getCounselors();
+      expect(counselors.length).to.equal(0);
+    });
+  });
 });

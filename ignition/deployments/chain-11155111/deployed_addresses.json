@@ -1,4 +1,3 @@
 {
-  "ConsensusModule#Consensus": "0x23736e5568dd070722320a113a781eEB112bae0C",
-  "ConsensusModule#ConsensusAdapter": "0x24da92aa4CfA89B8186f7B57ECd638f496B258d4"
+  "ConsensusModule#Validator": "0x952C73023Faebeb7a2eb10d4F20b58a464150751"
 }
